@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>ChomcioRecovery</AssemblyName>
+    <ApplicationIcon>../ChomcioRecovery/assets/ChomcioRecovery.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../SystemImageWorker/BrokerContracts.cs" Link="SystemImages/BrokerContracts.cs" />
+    <EmbeddedResource Include="../ChomcioRecovery/assets/ChomcioRecovery.ico" LogicalName="ChomcioRecovery.Brand.ico" />
+    <ProjectReference Include="../ChomcioRecovery/src/ChomcioRecovery.Core/ChomcioRecovery.Core.csproj" />
+    <ProjectReference Include="../ChomcioRecovery/src/ChomcioRecovery.Chomikuj/ChomcioRecovery.Chomikuj.csproj" />
+  </ItemGroup>
+</Project>
+

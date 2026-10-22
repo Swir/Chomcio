@@ -1,0 +1,11 @@
+{
+  "SnapshotId": "e93ed64e5e8b49ca84c8a55529374da9",
+  "PasswordTestOnly": "fixtures-ONLY-not-production-2026",
+  "Files": {
+    "empty.bin": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "raw.bin": "ae1c6c3cfa59c7104a54158baf274b8156bd6893d3a5b6abe42b71cf47e3e635",
+    "folder/żółw.txt": "9f6a161adffa600cf161bc3012b53a2fbd93d19e1b83b73d11a3245499d76186"
+  },
+  "ChunkObjects": 2,
+  "ReusedChunks": 0
+}
