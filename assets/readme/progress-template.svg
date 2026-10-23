@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="180" viewBox="0 0 1200 180" role="img" aria-labelledby="title desc">
+<title id="title">TEMPLATE / NOT PROJECT DATA — N/A</title><desc id="desc">TEMPLATE / NOT PROJECT DATA. Replace with the measured scope. N/A; N/A — verified criteria. PLANNING. No project data. Edit the canonical source and regenerate; never embed this template as live progress.</desc>
+<defs>
+<linearGradient id="bg" x2="1" y2="1"><stop stop-color="#02050A"/><stop offset="1" stop-color="#07111C"/></linearGradient>
+<linearGradient id="cyan"><stop stop-color="#0088FF"/><stop offset="1" stop-color="#62E5FF"/></linearGradient>
+<pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#62E5FF" stroke-opacity=".045"/></pattern>
+</defs>
+<rect width="1200" height="180" rx="22" fill="url(#bg)"/>
+<rect width="1200" height="180" rx="22" fill="url(#grid)"/>
+<rect x="1" y="1" width="1198" height="178" rx="21" fill="none" stroke="#62E5FF" stroke-opacity=".25"/>
+<text x="50" y="39" font-family="Segoe UI, Arial, sans-serif" font-size="25" fill="#F4FAFF" font-weight="700">TEMPLATE / NOT PROJECT DATA</text>
+<text x="50" y="67" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#8DA8B8" >Replace with the measured scope</text>
+<text x="1150" y="48" font-family="Segoe UI, Arial, sans-serif" font-size="34" fill="#62E5FF" text-anchor="end" font-weight="700">N/A</text>
+<text x="50" y="94" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#62E5FF" >PLANNING · Template</text>
+<text x="1150" y="94" font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#8DA8B8" text-anchor="end">N/A — verified criteria</text>
+<text x="50" y="151" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#8DA8B8" >No project data. Edit the canonical source and regenerate; never embed this template as live progress.</text>
+<rect x="50" y="112" width="1100" height="10" rx="3" fill="#07111C" stroke="#245266" stroke-dasharray="6 6"/>
+</svg>

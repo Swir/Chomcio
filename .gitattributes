@@ -3,3 +3,5 @@
 *.png binary
 *.obj binary
 *.snap binary
+assets/readme/*.svg text eol=lf
+tools/Generate-ReadmeAssets.py text eol=lf
