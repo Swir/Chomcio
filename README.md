@@ -1,10 +1,15 @@
 # ChomcioRecovery by Swir
 
-**v1.0.0 — szyfrowane kopie plików i folderów, przede wszystkim na Chomikuj.**
+**v1.0.0 Preview — szyfrowane kopie plików i folderów, przede wszystkim na Chomikuj.**
+
+Oznaczenie Stable wycofano 23 października 2026. Wymagany pełny proces kopii
+i przywracania Windows przez gotową aplikację nie jest jeszcze ukończony.
+Opisane wyniki testów plików pozostają aktualne, lecz nie potwierdzają gotowości
+całego produktu. Sama zmiana etykiety nie zastępuje ukończenia tych funkcji.
 
 ## Pobierz i uruchom
 
-Z [Releases](https://github.com/Swir/Chomcio/releases/latest) pobierz
+Z [wydania Preview](https://github.com/Swir/Chomcio/releases/tag/v1.0.0) pobierz
 `ChomcioRecovery-v1.0.0-win-x64.zip`, rozpakuj **cały folder** i uruchom
 `ChomcioRecovery.exe`. Paczka zawiera środowisko .NET; SDK nie jest potrzebne.
 Wymagany Windows x64. Wydanie sprawdzono na Windows 11; nie deklaruje osobnej
@@ -18,7 +23,7 @@ wydawcy Authenticode.
    wystarczy do odszyfrowania kopii po awarii lub na innym komputerze.
 4. Uruchom kopię. Później wybierz ją w „Przywróć pliki” i wskaż nowe miejsce.
 
-## Stabilny zakres v1
+## Dostępne funkcje i zakres sprawdzenia
 
 - Kopie i wersje plików oraz folderów na dysku i na Chomikuj.
 - Szyfrowanie przed wysłaniem; sprawdzanie danych po wysłaniu i przy odtwarzaniu.
@@ -50,7 +55,7 @@ Windows. Test używał pomocniczego przekazania danych między maszyną a gospod
 **Nie oznacza to gotowego, stabilnego procesu odzyskania dowolnego komputera
 przez GUI.** Instalator dla zwykłego użytkownika, kreator nośnika ratunkowego,
 interaktywne logowanie i pełny codzienny cykl systemowy wymagają dalszej pracy.
-Modułu systemowego ani prywatnego nośnika Windows nie dołączamy do paczki stable.
+Modułu systemowego ani prywatnego nośnika Windows nie dołączono do tej paczki.
 
 ## Budowanie i krótkie sprawdzenie
 

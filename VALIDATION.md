@@ -2,6 +2,9 @@
 
 Data: 22 października 2026. Środowisko: Windows 11 x64, .NET SDK 10.0.402.
 
+Status skorygowany 23 października: **Preview**. Poniższe wyniki dotyczą
+opisanego zakresu, a nie ukończenia pełnego produktu z odzyskiwaniem Windows.
+
 | Kontrola | Wynik |
 | --- | --- |
 | Samodzielna paczka Windows x64: GUI i CLI | PASS |
@@ -25,7 +28,7 @@ dotyczą numeru wersji, oznaczeń GUI i dokumentacji.
 W teście natywnym wykonano pięć kontroli dowiązań. Przypadek krótkiej nazwy
 8.3 pominięto, ponieważ środowisko nie udostępniało takiego aliasu.
 
-**Nie zaliczamy jako części stable:** odzyskiwania dowolnego całego komputera,
+**Nie potwierdzono gotowości:** odzyskiwania dowolnego całego komputera,
 instalatora modułu systemowego dla zwykłego użytkownika, kreatora USB ratunkowego,
 usługi przed zalogowaniem ani rzeczywistego cyklu wylogowania/restartu dla tej
 paczki. Obraz Windows jest oznaczony jako eksperymentalny. Wcześniejszy test

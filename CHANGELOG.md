@@ -1,6 +1,14 @@
 # Historia wydań
 
-## 1.0.0 — 2026-10-22
+## Korekta statusu — 2026-10-23
+
+Wydanie 1.0.0 zmieniono na Preview. Oznaczenie całego produktu jako Stable było
+przedwczesne: pełne przywracanie Windows wymagało narzędzi laboratoryjnych,
+a opublikowana paczka nie zawiera modułu systemowego ani gotowego kreatora
+odzyskiwania. Testy plików i folderów nie kwalifikują tych brakujących funkcji.
+Dotychczasowe pliki wydania i wyniki zachowano bez zmian.
+
+## 1.0.0 Preview — opublikowane 2026-10-23
 
 Pierwsze wydanie dla kopii plików i folderów na dysku oraz Chomikuj.
 
@@ -14,7 +22,7 @@ Pierwsze wydanie dla kopii plików i folderów na dysku oraz Chomikuj.
 - Obsługa GUID woluminu przy sprawdzaniu miejsca i tworzeniu bezpiecznych
   katalogów roboczych.
 
-**Zakres stable:** pliki i foldery. Kopia całego Windows jest eksperymentalna,
+**Sprawdzony zakres paczki:** pliki i foldery. Kopia całego Windows jest eksperymentalna,
 wyraźnie oznaczona w aplikacji; moduł wykonawczy pozostaje w źródłach.
 Brak gotowego kreatora USB ratunkowego i usługi kopii plików przed logowaniem.
 Interfejs używa WinForms; migracja do WinUI 3 nie jest częścią v1.
