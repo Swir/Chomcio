@@ -127,11 +127,12 @@ internal sealed class SystemImageRecoveryWindow : Form,IInlineFeedback
 {
     private readonly TextBox bundle=StudioTheme.Input(),destination=StudioTheme.Input();
     private readonly Label status=StudioTheme.Label("Przygotowanie nie zmienia działającego systemu ani partycji.",10,StudioTheme.Muted);
-    private readonly StudioButton prepare,cancel;
+    private readonly StudioButton prepare,cancel,next;
+    private string? preparedImage;
     private CancellationTokenSource? active;
     internal SystemImageRecoveryWindow(string? source=null)
     {
-        StudioTheme.Form(this);Text="Przygotuj odzyskiwanie Windows • ChomcioRecovery";ClientSize=new(760,620);MinimumSize=new(700,650);StartPosition=FormStartPosition.CenterParent;
+        StudioTheme.Form(this);Text="Przygotuj odzyskiwanie Windows • ChomcioRecovery";ClientSize=new(760,680);MinimumSize=new(700,690);StartPosition=FormStartPosition.CenterParent;
         var body=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,Padding=new(24),AutoScroll=true};Controls.Add(body);
         void Add(Control c,int h){int r=body.RowCount++;body.RowStyles.Add(new(SizeType.Absolute,h));c.Dock=DockStyle.Fill;body.Controls.Add(c,0,r);}
         void Pick(TextBox field,string label){Add(StudioTheme.Label(label,10,StudioTheme.Muted),28);var row=new TableLayoutPanel{ColumnCount=2};row.ColumnStyles.Add(new(SizeType.Percent,100));row.ColumnStyles.Add(new(SizeType.Absolute,110));field.Dock=DockStyle.Fill;row.Controls.Add(field);var button=StudioTheme.Button("Wybierz",()=>{if(active is not null)return;using var dialog=new FolderBrowserDialog();if(dialog.ShowDialog(this)==DialogResult.OK)field.Text=dialog.SelectedPath;});button.Dock=DockStyle.Fill;row.Controls.Add(button,1,0);Add(row,45);}
@@ -141,16 +142,18 @@ internal sealed class SystemImageRecoveryWindow : Form,IInlineFeedback
         Pick(destination,"Dysk zewnętrzny / roboczy — wybierz jego główny katalog");bundle.Text=source??"";
         var actions=new FlowLayoutPanel();prepare=StudioTheme.AsyncButton("Przygotuj i sprawdź obraz",PrepareAsync,true);prepare.Name="PrepareWindowsRecovery";prepare.Width=260;cancel=StudioTheme.Button("Zatrzymaj",()=>active?.Cancel());cancel.Visible=false;actions.Controls.Add(prepare);actions.Controls.Add(cancel);Add(actions,50);
         status.AutoSize=false;Add(status,115);
+        next=StudioTheme.Button("Dalej: nośnik ratunkowy i odtworzenie",()=>{using var guide=new WindowsRecoveryGuideWindow(preparedImage);guide.ShowDialog(this);});next.Name="ContinueWindowsRecovery";next.Enabled=false;Add(next,45);
         FormClosing+=(_,e)=>{if(active is not null){e.Cancel=true;active.Cancel();ShowFeedback("Kończenie zapisu. Poczekaj na potwierdzenie.");}};
     }
     private async Task PrepareAsync()
     {
-        using var cts=new CancellationTokenSource();active=cts;prepare.Enabled=bundle.Enabled=destination.Enabled=false;cancel.Visible=true;
+        using var cts=new CancellationTokenSource();active=cts;prepare.Enabled=bundle.Enabled=destination.Enabled=next.Enabled=false;cancel.Visible=true;preparedImage=null;
         string input=bundle.Text,output=destination.Text;
         try
         {
             var progress=new Progress<string>(ShowFeedback);
             var path=await Task.Run(()=>SystemImageRecovery.PrepareAsync(input,output,progress,cts.Token));
+            preparedImage=path;next.Enabled=true;
             ShowFeedback("Obraz przygotowany i sprawdzony: "+path+"\nUruchom komputer z nośnika odzyskiwania Windows. Wybierz Rozwiąż problemy → Opcje zaawansowane → Odzyskiwanie obrazu systemu. Ten krok nie przywrócił jeszcze Windows.");
         }
         catch(OperationCanceledException){ShowFeedback("Zatrzymano. Istniejące kopie zachowano; nie potwierdzono gotowości nowego obrazu.");}

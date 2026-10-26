@@ -251,7 +251,8 @@ internal sealed class StudioWindow : Form, IInlineFeedback
         foreach(var profile in store.Data.Profiles.Where(p=>p.Content==BackupContent.WindowsSystem))flow.Controls.Add(JobCard(profile));
         var local=StudioTheme.Button("Kopia Windows na dysku",()=>EditProfile(null,BackupDestination.Local,BackupContent.WindowsSystem));local.Enabled=!engine.IsBusy;flow.Controls.Add(local);
         var prepare=StudioTheme.Button("Przygotuj pobrany obraz do odzyskiwania",()=>{using var window=new SystemImageRecoveryWindow();window.ShowDialog(this);});prepare.Name="PrepareDownloadedWindowsImage";prepare.Width=370;prepare.Enabled=!engine.IsBusy;flow.Controls.Add(prepare);
-        var restore=new StudioCard{Height=176};flow.Controls.Add(restore);Place(restore,StudioTheme.Label("Przygotuj się na awarię",15,null,true),24,20);Place(restore,StudioTheme.Label("Zapisz klucz odzyskiwania poza komputerem. Przycisk „Pobierz obraz”\npobiera i sprawdza pliki obrazu. Przywrócenie całego Windows wymaga\nuruchomienia środowiska ratunkowego (WinRE). Kreator własnego\nnośnika ratunkowego jest jeszcze w przygotowaniu.",10,StudioTheme.Muted),24,61);
+        var restore=new StudioCard{Height=205};flow.Controls.Add(restore);Place(restore,StudioTheme.Label("Przygotuj się na awarię",15,null,true),24,20);Place(restore,StudioTheme.Label("Zachowaj klucz poza komputerem i przygotuj osobny pendrive.\nPrzewodnik otworzy kreator nośnika Windows i pozwoli zapisać\ninstrukcję pobrania oraz odtworzenia kopii z Chomikuj.",10,StudioTheme.Muted),24,61);
+        var guide=StudioTheme.Button("Nośnik ratunkowy i instrukcja",()=>{using var window=new WindowsRecoveryGuideWindow();window.ShowDialog(this);});guide.Name="WindowsRecoveryGuide";guide.Width=300;Place(restore,guide,24,145);
     }
     internal void EditProfile(BackupProfile? profile,BackupDestination? newDestination=null,BackupContent newContent=BackupContent.Files)
     {

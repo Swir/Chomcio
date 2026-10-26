@@ -114,7 +114,7 @@ internal static class WindowsOwnedDirectoryPublisher
     {
         if (fullTarget.Contains('\0'))
             throw new IOException("NUL in restore/export destination.");
-        byte[] utf16 = Encoding.Unicode.GetBytes(fullTarget);
+        byte[] utf16 = Encoding.Unicode.GetBytes(WindowsNativePath.FromPath(fullTarget));
         int nameOffset = checked((int)Marshal.OffsetOf<RenameInfoLayout>(
             nameof(RenameInfoLayout.FileName)));
         int sizeOffset = checked((int)Marshal.OffsetOf<RenameInfoLayout>(

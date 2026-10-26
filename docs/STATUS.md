@@ -31,6 +31,9 @@ dyskach. Aktualizacja README nie zmienia stanu wykonania powyższych prac.
 
 ## Zmiany przygotowane 26 października 2026 — jeszcze niewydane
 
+- Naprawiono obsługę długich ścieżek przy zapisie, eksporcie i odtwarzaniu.
+  Po poprawce pełny test Core zakończył się 673 kontrolami PASS; sprawdzono
+  także zachowanie odmowy nadpisania istniejących danych.
 - Paczka zawiera moduł obrazowania. Kreator uruchamia instalację EXE ze zgodą
   administratora, bez zmiany zasad wykonywania skryptów PowerShell.
 - Instalacja EXE w osobnej VM, odczyt planu pod tokenem zwykłego użytkownika,
@@ -41,6 +44,10 @@ dyskach. Aktualizacja README nie zmienia stanu wykonania powyższych prac.
   i rozpoznaje kopię Windows bez konfiguracji dawnego modułu.
 - Program sprawdza i przygotowuje `WindowsImageBackup` na dysku NTFS do WinRE,
   z kontrolą zapisanych bajtów, anulowaniem i odmową nadpisania starszego obrazu.
+- Dodano przewodnik z przyciskiem systemowego kreatora nośnika i instrukcją
+  offline. Krótki test interfejsu zastępował uruchomienie Windows atrapą.
+  Utworzenie USB, start z USB i odzyskanie Windows przez ten przewodnik
+  **pozostają nieprzetestowane**. Nie jest to własny generator WinPE.
 - Przygotowanie zachowanego, niezależnie pobranego obrazu laboratoryjnego
   (14,69 GiB po rozpakowaniu) przeszło kontrolę. Nie oznacza to nowego testu
   uruchomienia odtworzonego Windows ani gotowości całego produktu.

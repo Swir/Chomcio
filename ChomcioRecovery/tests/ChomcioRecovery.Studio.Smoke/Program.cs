@@ -10,6 +10,11 @@ internal static class StudioSmoke
     private static async Task Fails(Func<Task> action,string label){bool failed=false;try{await action();}catch(Exception e)when(e is IOException or InvalidDataException or ArgumentException or CryptographicException or System.Text.Json.JsonException){failed=true;}Check(failed,label);}
     [STAThread]private static int Main(string[] args)
     {
+        if(args.Length==2&&args[0]=="--recovery-guide")
+        {
+            try{Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);Application.EnableVisualStyles();RecoveryGuideScenarios.Run(Path.GetFullPath(args[1]),Check);Console.WriteLine($"Checks: {checks}");return 0;}
+            catch(Exception e){Console.Error.WriteLine(e);return 1;}
+        }
         if(args.Length==3&&args[0]=="--prepare-windows-recovery")
         {
             const string lab=@"D:\Codex\VMs\ChomcioRecovery-Windows-Test\";
@@ -53,6 +58,7 @@ internal static class StudioSmoke
     private static async Task Run(string root)
     {
         root=Path.GetFullPath(root);if(Directory.Exists(root))throw new IOException("Test requires a new directory.");Directory.CreateDirectory(root);
+        RecoveryGuideScenarios.Run(Path.Combine(root,"recovery-guide"),Check);
         Work12Scenarios.Run(Check);
         await LocalJobProgressScenarios.Run(root,Check);
         var secrets=new JobSecrets("synthetic-vault-secret","synthetic-login","synthetic-account-secret");

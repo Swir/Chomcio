@@ -1,6 +1,32 @@
 # Sprawdzenie wydania 1.0.0
 
-## Kandydat roboczy — 26 października 2026
+## Kandydat roboczy r7 — 26 października 2026
+
+Naprawiono błąd końcowego zapisu do zwykłej ścieżki DOS dłuższej niż 260 znaków
+oraz natywnego odczytu wolnego miejsca dla takiej ścieżki. Konwersja do postaci
+rozszerzonej następuje wyłącznie przy wywołaniu Windows; nie zmieniono kontroli
+dowiązań, przypiętych uchwytów, uprawnień ani zakazu nadpisywania.
+
+| Kontrola po poprawce | Wynik |
+| --- | --- |
+| Pełny Core na Windows, w tym 10 nowych kontroli ścieżek ponad 340 znaków | PASS: 673; natywne kontrole dowiązań 5/5 |
+| Przygotowanie obrazu, anulowanie, rozpoznawanie na nowym PC i kreator profilu | PASS: testy syntetyczne zmienionych ścieżek |
+| Nowy przewodnik odzyskiwania: zgoda na pusty USB, odmowa UAC, ponowne kliknięcie, instrukcja | PASS: 7 kontroli; uruchomienie narzędzia Windows zastąpione atrapą |
+| Zbudowane EXE CLI r7: kopia, odtworzenie, porównanie bajtów, odmowy i niezależny eksport | PASS: 11 kontroli |
+
+Pierwszy test przygotowania odzyskiwania ujawnił błąd Windows 206, a wąski test
+długiej ścieżki wskazał dodatkowo błąd 3 w odczycie wolnego miejsca. Po poprawkach
+obie ścieżki przeszły. Naprawiono też przygotowanie pustego strumienia ADS w teście:
+przed sprawdzeniem jawnie obcina istniejący strumień i potwierdza długość zero.
+Kod produkcyjny zachowywania Zone.Identifier nie został zmieniony.
+
+R7 zawiera przebudowane GUI i CLI oraz niezmieniony moduł obrazowania z r5.
+Nie powtarzano dużego transferu obrazu ani wcześniejszych testów transportu.
+Przewodnik nie jest dowodem utworzenia USB ani odzyskania systemu: rzeczywiste
+utworzenie nośnika, start z niego i pełne odzyskanie przez gotową paczkę pozostają
+niepotwierdzone. Oznaczenie eksperymentalne i status Preview pozostają.
+
+## Wcześniejsze kontrole kandydata r5 — 26 października 2026
 
 Windows 11 x64, SDK 10.0.403, samodzielna paczka na runtime 10.0.14.
 Nie opublikowano nowego Stable.

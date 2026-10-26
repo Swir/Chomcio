@@ -2,6 +2,9 @@
 
 ## Niewydane — przygotowanie kopii Windows, 2026-10-26
 
+- Naprawiono zapis i odtwarzanie w głęboko zagnieżdżonych katalogach Windows.
+  Natywne operacje otrzymują pełną postać długiej ścieżki; zachowano kontrolę
+  uprawnień, integralności i odmowę nadpisania istniejących danych.
 - Dołączono moduł obrazowania do paczki i dodano instalację EXE z kreatora.
   Instalacja wymaga zgody administratora i pustego osobnego dysku NTFS;
   nie formatuje nośników ani nie zmienia zasad PowerShell.
@@ -9,6 +12,9 @@
   na komputerze bez starego profilu i planu tworzenia kopii.
 - Dodano przygotowanie sprawdzonego `WindowsImageBackup` do odzyskiwania w WinRE,
   bez nadpisywania istniejącej kopii, z anulowaniem i kontrolą integralności.
+- Dodano przewodnik z wejściem do systemowego kreatora USB i zapisem instrukcji.
+  Test jego interfejsu używał atrapy uruchomienia narzędzia Windows. Nie wykonano
+  nim rzeczywistego utworzenia USB, startu z USB ani przywrócenia Windows.
 - Wykonano testy syntetyczne nowych ścieżek i przygotowanie zachowanego obrazu
   pobranego z testowego Chomikuj. Kwalifikacja całego produktu nadal trwa.
 
