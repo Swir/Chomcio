@@ -6,6 +6,15 @@ namespace ChomcioRecovery.Desktop;
 // the captured system volume. Settings and DPAPI secrets may remain in AppData.
 internal static class SystemImageStorage
 {
+    // Recovery is independent of the old machine's privileged capture plan.
+    // Keep large downloads on the user-selected recovery volume, not AppData.
+    internal static string RecoveryRepository(string existingParent,string operationId)
+    {
+        if(!Path.IsPathFullyQualified(existingParent)||!Directory.Exists(existingParent)||!BrokerFiles.IsId(operationId))
+            throw new ArgumentException("Wybierz istniejący folder na dysku do pobrania kopii.");
+        StudioStore.RejectLinks(existingParent);
+        return Path.Combine(Path.GetFullPath(existingParent),"ChomcioPobieranie_"+operationId,"encrypted");
+    }
     internal static string Repository(string cacheRoot,string profileId)
     {
         if(!BrokerFiles.IsId(profileId))throw new InvalidDataException("Niepoprawny identyfikator kopii.");

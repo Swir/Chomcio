@@ -19,12 +19,30 @@ Poniższe obszary opisują stan funkcji; nie są punktami przyjętego modelu pro
 
 ## Co pozostaje do ukończenia
 
-- Instalator modułu systemowego i obsługa jego uprawnień przez zwykłego użytkownika.
+- Kwalifikacja całego przejścia przez interaktywny kreator Windows na zwykłym koncie; instalator EXE i odczyt planu pod tokenem zwykłego użytkownika przeszły test VM.
 - Kompletny proces obrazu Windows, wysłania, niezależnego pobrania i odzyskania za pomocą dostarczonej aplikacji.
 - Kreator nośnika ratunkowego USB/WinPE oraz sprawdzony proces odtworzenia na pustym dysku.
 - Interaktywne logowanie w procesie systemowym i pełny codzienny cykl kopii systemu.
-- Rzeczywiste testy wylogowania i restartu dla paczki; usługa kopii plików przed logowaniem nie jest ukończona.
+- Rzeczywista kopia do chmury po wylogowaniu i restarcie; start samego modułu obrazu po restarcie przeszedł test VM. Usługa kopii plików przed logowaniem nie jest ukończona.
 
 Oznaczenie Stable wymaga ukończenia i udokumentowania tych przepływów.
 Testy systemowe prowadzi się wyłącznie w izolowanych maszynach na ich własnych
 dyskach. Aktualizacja README nie zmienia stanu wykonania powyższych prac.
+
+## Zmiany przygotowane 26 października 2026 — jeszcze niewydane
+
+- Paczka zawiera moduł obrazowania. Kreator uruchamia instalację EXE ze zgodą
+  administratora, bez zmiany zasad wykonywania skryptów PowerShell.
+- Instalacja EXE w osobnej VM, odczyt planu pod tokenem zwykłego użytkownika,
+  odmowa powtórnego nadpisania instalacji i start modułu po rzeczywistym
+  restarcie VM przeszły kontrolę. Moduł jest zadaniem startowym SYSTEM
+  w Harmonogramie zadań; ten test nie wykonał automatycznej kopii do chmury.
+- Pobieranie obrazu na innym komputerze korzysta z wybranego miejsca roboczego
+  i rozpoznaje kopię Windows bez konfiguracji dawnego modułu.
+- Program sprawdza i przygotowuje `WindowsImageBackup` na dysku NTFS do WinRE,
+  z kontrolą zapisanych bajtów, anulowaniem i odmową nadpisania starszego obrazu.
+- Przygotowanie zachowanego, niezależnie pobranego obrazu laboratoryjnego
+  (14,69 GiB po rozpakowaniu) przeszło kontrolę. Nie oznacza to nowego testu
+  uruchomienia odtworzonego Windows ani gotowości całego produktu.
+
+Te zmiany nie zmieniają statusu publicznego wydania v1.0.0 Preview.

@@ -10,6 +10,14 @@ internal static class StudioSmoke
     private static async Task Fails(Func<Task> action,string label){bool failed=false;try{await action();}catch(Exception e)when(e is IOException or InvalidDataException or ArgumentException or CryptographicException or System.Text.Json.JsonException){failed=true;}Check(failed,label);}
     [STAThread]private static int Main(string[] args)
     {
+        if(args.Length==3&&args[0]=="--prepare-windows-recovery")
+        {
+            const string lab=@"D:\Codex\VMs\ChomcioRecovery-Windows-Test\";
+            if(!Path.GetFullPath(args[1]).StartsWith(lab,StringComparison.OrdinalIgnoreCase)||
+                !Path.GetFullPath(args[2]).StartsWith(lab,StringComparison.OrdinalIgnoreCase))return 2;
+            try{string recoveryPath=SystemImageRecovery.PrepareAsync(args[1],args[2],null,default,false).GetAwaiter().GetResult();Console.WriteLine("WINDOWS_RECOVERY_PREPARATION=PASS "+recoveryPath);return 0;}
+            catch(Exception e){Console.Error.WriteLine(e);return 1;}
+        }
         if(args.Length==4&&args[0]=="--resume-daily-image-fix")
             return InstalledDailyImageResumeProbe.Run(args[1],args[2],args[3],true);
         if(args.Length==4&&args[0]=="--resume-daily-image")
@@ -38,7 +46,7 @@ internal static class StudioSmoke
         using var host=new Form{Opacity=0,ShowInTaskbar=false};int result=1;
         host.Shown+=async(_,_)=>
         {
-            try{if(args[0]=="--live")await LiveAcceptance.Run(args[1],args.Length>2?args[2]:"create");else await Run(args[0]);result=0;}catch(Exception e){Console.Error.WriteLine(e);}finally{host.Close();}
+            try{if(args[0]=="--live")await LiveAcceptance.Run(args[1],args.Length>2?args[2]:"create");else if(args.Length==2&&args[0]=="--system-readiness")await SystemImageWizardScenarios.Run(Path.GetFullPath(args[1]),Check);else await Run(args[0]);result=0;}catch(Exception e){Console.Error.WriteLine(e);}finally{host.Close();}
         };
         Application.Run(host);return result;
     }

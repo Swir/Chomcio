@@ -1,5 +1,17 @@
 # Historia wydań
 
+## Niewydane — przygotowanie kopii Windows, 2026-10-26
+
+- Dołączono moduł obrazowania do paczki i dodano instalację EXE z kreatora.
+  Instalacja wymaga zgody administratora i pustego osobnego dysku NTFS;
+  nie formatuje nośników ani nie zmienia zasad PowerShell.
+- Dodano niezależne miejsce pobierania kopii Windows oraz rozpoznawanie obrazu
+  na komputerze bez starego profilu i planu tworzenia kopii.
+- Dodano przygotowanie sprawdzonego `WindowsImageBackup` do odzyskiwania w WinRE,
+  bez nadpisywania istniejącej kopii, z anulowaniem i kontrolą integralności.
+- Wykonano testy syntetyczne nowych ścieżek i przygotowanie zachowanego obrazu
+  pobranego z testowego Chomikuj. Kwalifikacja całego produktu nadal trwa.
+
 ## Korekta statusu — 2026-10-23
 
 Wydanie 1.0.0 zmieniono na Preview. Oznaczenie całego produktu jako Stable było

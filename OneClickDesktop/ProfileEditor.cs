@@ -108,7 +108,18 @@ internal sealed class ProfileEditor : Form
                 Field("Nazwa kopii",name);
                 Note("Obraz powstaje na osobnym dysku roboczym. Następnie\nprogram szyfruje go, wysyła i sprawdza w wybranym miejscu.\nPotrzebujesz wolnego miejsca także podczas wysyłania.",75);
                 if(imagePlan.Items.Count==0)
-                    Note(imagePlanError??"Najpierw przygotuj moduł systemowy na tym komputerze.\nWymaga osobnego, pustego dysku NTFS i zatwierdzenia\nadministratora. W tej wersji instalacja jest osobnym krokiem.",80);
+                {
+                    Note(imagePlanError??"Przygotuj moduł systemowy. Wymaga osobnego, pustego\ndysku NTFS i zatwierdzenia administratora.",55);
+                    if(original is null)Field("",StudioTheme.Button("Przygotuj moduł Windows",()=>
+                    {
+                        using var setup=new ImageWorkerSetupWindow();
+                        if(setup.ShowDialog(this)!=DialogResult.OK)return;
+                        imagePlan.Items.Clear();imagePlanError=null;
+                        foreach(var plan in imagePlans.List())imagePlan.Items.Add(plan);
+                        if(imagePlan.Items.Count==1)imagePlan.SelectedIndex=0;
+                        Render();
+                    }),40);
+                }
             }
             else
             {

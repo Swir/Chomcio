@@ -17,6 +17,7 @@ internal sealed class RestoreSession : IDisposable
     private readonly Dictionary<string,CloudVaultTransfer> remotePoints=new();
     private readonly Dictionary<string,string> downloaded=new();
     internal int SkippedSystemLinksCount{get;private set;}
+    internal bool PreparedSystemImage{get;private set;}
     internal RestoreSession(StudioStore store,BackupProfile profile,JobSecrets secrets){this.store=store;this.profile=profile;this.secrets=secrets;}
     internal async Task<IReadOnlyList<RestorePoint>> ListAsync(bool cloud,CancellationToken token)
     {
@@ -35,7 +36,7 @@ internal sealed class RestoreSession : IDisposable
         }
         return remotePoints.Keys.Select(id=>new RestorePoint(id,store.Data.History.LastOrDefault(h=>h.ProfileId==profile.Id&&h.Snapshot==id&&h.State==RunState.Success)?.Started)).OrderByDescending(p=>p.Date).ToArray();
     }
-    internal async Task<LocalEncryptedVault.Snapshot> PrepareAsync(string id,bool cloud,IProgress<CloudProgress>? progress,CancellationToken token)
+    internal async Task<LocalEncryptedVault.Snapshot> PrepareAsync(string id,bool cloud,IProgress<CloudProgress>? progress,CancellationToken token,string? recoveryParent=null)
     {
         string repo=profile.Repository;
         if(cloud)
@@ -43,15 +44,17 @@ internal sealed class RestoreSession : IDisposable
             if(!remotePoints.TryGetValue(id,out var remote))throw new InvalidOperationException("Najpierw odczytaj listę kopii.");
             if(!downloaded.TryGetValue(id,out repo!))
             {
-                if(profile.Content==BackupContent.WindowsSystem)new InstalledSystemImageCapture().ValidateStorage(profile);
-                repo=profile.Content==BackupContent.WindowsSystem?
-                    Path.Combine(SystemImageStorage.TransferDirectory(store,profile,Guid.NewGuid().ToString("N")),"restore","encrypted"):
+                if(profile.Content==BackupContent.WindowsSystem&&recoveryParent is null)
+                    throw new ArgumentException("Wybierz dysk lub folder do pobrania obrazu Windows.");
+                repo=recoveryParent is not null?SystemImageStorage.RecoveryRepository(recoveryParent,Guid.NewGuid().ToString("N")):
                     Path.Combine(store.Root,"restores",Guid.NewGuid().ToString("N"),"encrypted");
                 Directory.CreateDirectory(Path.GetDirectoryName(repo)!);
                 await remote.DownloadSnapshotAsync(id,secrets.VaultPassword,repo,progress,token);downloaded.Add(id,repo);
             }
         }
         var snapshot=await Task.Run(()=>{using var vault=LocalEncryptedVault.Open(repo,secrets.VaultPassword);vault.VerifySnapshot(id,token);return vault.ReadSnapshot(id,token);},token);
+        PreparedSystemImage=profile.Content==BackupContent.WindowsSystem||
+            snapshot.Files.Any(f=>f.Path==SystemImageLease.ArchiveName)&&snapshot.Files.Any(f=>f.Path==SystemImageLease.ReceiptName);
         SkippedSystemLinksCount=snapshot.SkippedSystemDirectoryLinks?.Count??0;return snapshot;
     }
     internal async Task RestoreAsync(string id,bool cloud,string target,string? relativeFile,IProgress<CloudProgress>? progress,CancellationToken token)
@@ -60,13 +63,15 @@ internal sealed class RestoreSession : IDisposable
             throw new ArgumentException("Pobierz cały zestaw obrazu Windows razem z jego opisem.");
         // Refuse an existing destination before network or plaintext writes.
         if(File.Exists(target)||Directory.Exists(target))throw new IOException("Folder lub plik docelowy już istnieje. Wybierz nową nazwę.");
-        await PrepareAsync(id,cloud,progress,token);
+        await PrepareAsync(id,cloud,progress,token,Path.GetDirectoryName(target));
+        if(PreparedSystemImage&&relativeFile is not null)
+            throw new ArgumentException("To kopia Windows. Pobierz cały obraz razem z jego opisem.");
         string repo=cloud?downloaded[id]:profile.Repository;
         await Task.Run(()=>{using var vault=LocalEncryptedVault.Open(repo,secrets.VaultPassword);if(relativeFile is null)vault.RestoreSnapshot(id,target,token);else vault.RestoreFile(id,relativeFile,target,token);},token);
-        if(profile.Content==BackupContent.WindowsSystem)
+        if(PreparedSystemImage)
         {
             var receipt=ChomcioRecovery.SystemImages.BrokerFiles.Read<SystemImageReceipt>(Path.Combine(target,SystemImageLease.ReceiptName));
-            if(receipt.PlanId!=profile.SystemImagePlanId)throw new InvalidDataException("Pobrany obraz pochodzi z innego planu Windows.");
+            if(profile.SystemImagePlanId is not null&&receipt.PlanId!=profile.SystemImagePlanId)throw new InvalidDataException("Pobrany obraz pochodzi z innego planu Windows.");
             using var verified=await SystemImageLease.OpenAsync(target,new(receipt.PlanId,receipt.CaptureId,receipt.RequestedUtc),token);
         }
     }
@@ -81,7 +86,8 @@ internal sealed class RestoreWindow : Form,IInlineFeedback
     private readonly ComboBox files=new(){DropDownStyle=ComboBoxStyle.DropDownList,BackColor=StudioTheme.Raised,ForeColor=StudioTheme.Ink};
     private readonly Label status=StudioTheme.Label("Wczytywanie kopii…",10,StudioTheme.Muted);
     private readonly TextBox parent=StudioTheme.Input();
-    private readonly StudioButton restore,loadFiles,stop;
+    private readonly StudioButton restore,loadFiles,stop,prepareImage;
+    private string? imageBundle;
     private CancellationTokenSource? active;
     private bool closing;
     private string? prepared;
@@ -101,6 +107,7 @@ internal sealed class RestoreWindow : Form,IInlineFeedback
         var line=new TableLayoutPanel{ColumnCount=2};line.ColumnStyles.Add(new(SizeType.Percent,100));line.ColumnStyles.Add(new(SizeType.Absolute,105));line.Controls.Add(parent,0,0);
         var browse=StudioTheme.Button("Wybierz",()=>{using var picker=new FolderBrowserDialog{Description="Odtworzone dane trafią do nowego podfolderu."};if(picker.ShowDialog(this)==DialogResult.OK)parent.Text=picker.SelectedPath;});browse.Dock=DockStyle.Fill;line.Controls.Add(browse,1,0);Add(line,44);
         var actions=new FlowLayoutPanel();restore=StudioTheme.AsyncButton(systemImage?"Pobierz i sprawdź":"Przywróć teraz",RestoreAsync,true);stop=StudioTheme.Button("Zatrzymaj",()=>active?.Cancel());stop.Visible=false;actions.Controls.Add(restore);actions.Controls.Add(stop);Add(actions,52);
+        prepareImage=StudioTheme.Button("Przygotuj odzyskiwanie",()=>{if(active is not null||imageBundle is null)return;using var window=new SystemImageRecoveryWindow(imageBundle);window.ShowDialog(this);});prepareImage.Name="PrepareRestoredWindowsImage";prepareImage.Width=230;prepareImage.Visible=false;actions.Controls.Add(prepareImage);
         status.AutoSize=false;Add(status,83);
         origin.SelectedIndexChanged+=async(_,_)=>await LoadAsync();points.SelectedIndexChanged+=(_,_)=>{prepared=null;files.Items.Clear();files.Items.Add("Wszystkie pliki i foldery");files.SelectedIndex=0;};
         Shown+=async(_,_)=>await LoadAsync();FormClosing+=(_,e)=>{if(active is not null){e.Cancel=true;closing=true;active.Cancel();ShowFeedback("Kończenie operacji…");}};FormClosed+=(_,_)=>session.Dispose();
@@ -117,7 +124,17 @@ internal sealed class RestoreWindow : Form,IInlineFeedback
         finally{active=null;restore.Enabled=loadFiles.Enabled=origin.Enabled=points.Enabled=files.Enabled=parent.Enabled=true;stop.Visible=false;if(closing)Close();}
     }
     private Task LoadAsync()=>RunAsync(async token=>{ShowFeedback("Odczytywanie dostępnych kopii…");var list=await session.ListAsync(Cloud,token);points.Items.Clear();foreach(var point in list)points.Items.Add(point);if(points.Items.Count>0)points.SelectedIndex=0;ShowFeedback(list.Count>0?"Wybierz datę kopii i miejsce przywrócenia.":"Brak ukończonych kopii w tym miejscu.");});
-    private Task LoadFilesAsync()=>RunAsync(async token=>{if(points.SelectedItem is not RestorePoint point){ShowFeedback("Wybierz kopię z listy.");return;}ShowFeedback("Pobieranie i sprawdzanie kopii…");var snapshot=await session.PrepareAsync(point.Id,Cloud,Progress(),token);prepared=point.Id;files.Items.Clear();files.Items.Add("Wszystkie pliki i foldery");foreach(var file in snapshot.Files)files.Items.Add(file.Path);files.SelectedIndex=0;ShowFeedback("Wybierz pojedynczy plik z rozwijanej listy albo przywróć całość.");});
+    private Task LoadFilesAsync()=>RunAsync(async token=>
+    {
+        if(points.SelectedItem is not RestorePoint point){ShowFeedback("Wybierz kopię z listy.");return;}
+        if(Cloud&&(!Path.IsPathFullyQualified(parent.Text)||!Directory.Exists(parent.Text))){ShowFeedback("Najpierw wybierz miejsce pobrania kopii. Duży obraz Windows nie trafi na dysk z ustawieniami programu.");return;}
+        ShowFeedback("Pobieranie i sprawdzanie kopii…");
+        var snapshot=await session.PrepareAsync(point.Id,Cloud,Progress(),token,Cloud?parent.Text:null);
+        prepared=point.Id;files.Items.Clear();files.Items.Add("Wszystkie pliki i foldery");
+        if(!session.PreparedSystemImage)foreach(var file in snapshot.Files)files.Items.Add(file.Path);
+        files.SelectedIndex=0;
+        ShowFeedback(session.PreparedSystemImage?"To kopia całego Windows. Pobierz cały zestaw, następnie przygotuj go do odzyskiwania.":"Wybierz pojedynczy plik albo przywróć całość.");
+    });
     private Task RestoreAsync()=>RunAsync(async token=>
     {
         if(points.SelectedItem is not RestorePoint point){ShowFeedback("Wybierz kopię z listy.");return;}
@@ -125,7 +142,8 @@ internal sealed class RestoreWindow : Form,IInlineFeedback
         string? file=files.SelectedIndex>0&&prepared==point.Id?files.SelectedItem as string:null;
         string target=Path.Combine(parent.Text,"Przywrocone_"+DateTime.Now.ToString("yyyyMMdd_HHmmss")+"_"+Guid.NewGuid().ToString("N")[..6]+(file is null?"":Path.GetExtension(file)));
         ShowFeedback("Odtwarzanie i sprawdzanie plików…");await session.RestoreAsync(point.Id,Cloud,target,file,Progress(),token);
-        ShowFeedback((systemImage?"Pobrano i sprawdzono obraz. Windows nie został jeszcze odtworzony.\n":"Przywrócono i sprawdzono. Pliki są tutaj:\n")+target+
+        imageBundle=session.PreparedSystemImage?target:null;prepareImage.Visible=imageBundle is not null;
+        ShowFeedback((session.PreparedSystemImage?"Pobrano i sprawdzono obraz. Windows nie został jeszcze odtworzony.\n":"Przywrócono i sprawdzono. Pliki są tutaj:\n")+target+
             (session.SkippedSystemLinksCount>0?$"\nKopia pomija systemowe odsyłacze do innych folderów: {session.SkippedSystemLinksCount}.":""));
     });
     public void ShowFeedback(string text){if(!IsDisposed)status.Text=text;}

@@ -127,6 +127,7 @@ internal static class SystemImageWizardScenarios
             check(window.Text.StartsWith("Pobierz obraz Windows")&&!Field<Button>(window,"loadFiles").Visible,
                 "image download does not present itself as completed Windows recovery");
         }
+        await SystemImageReadinessScenarios.Run(area,source,profile,secrets,snapshot,store,check);
         Console.WriteLine("CHOMCIO_WINDOWS_PROFILE_WIZARD=PASS (synthetic plans and bytes; no native capture or cloud)");
     }
 }

@@ -13,10 +13,11 @@ internal static class NativeVolumes
         out uint serial,out uint maximumComponent,out uint flags,StringBuilder filesystem,int filesystemLength);
     [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)]
     [return:MarshalAs(UnmanagedType.Bool)] private static extern bool GetDiskFreeSpaceEx(string root,out ulong available,out ulong total,out ulong free);
-    internal static string SystemVolume()
+    internal static string SystemVolume()=>VolumeFor(Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.Windows))!);
+    internal static string VolumeFor(string root)
     {
         var name=new StringBuilder(128);
-        if(!GetVolumeNameForVolumeMountPoint(Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.Windows))!,name,name.Capacity))
+        if(!GetVolumeNameForVolumeMountPoint(root,name,name.Capacity))
             throw new Win32Exception(Marshal.GetLastWin32Error());
         return name.ToString();
     }
