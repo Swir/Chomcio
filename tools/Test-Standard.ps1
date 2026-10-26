@@ -18,5 +18,9 @@ foreach($suite in @('Core','Cloud','Studio')){
  if($suite -eq 'Studio'){$testArgs+=Join-Path $OutputDirectory 'studio'}
  & dotnet @testArgs
  if($LASTEXITCODE -ne 0){throw ('Checks failed: '+$suite)}
+ if($suite -eq 'Studio'){
+  & ([IO.Path]::ChangeExtension($dll,'.exe')) --background-copies (Join-Path $OutputDirectory 'background')
+  if($LASTEXITCODE -ne 0){throw 'Background checks failed.'}
+ }
 }
 Write-Output 'STANDARD_CHECKS=PASS (synthetic data; no cloud account, system image or VM)'

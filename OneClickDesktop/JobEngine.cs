@@ -126,7 +126,7 @@ internal sealed class JobEngine
             throw new ArgumentException("Hasło folderu Chomikuj musi być inne niż klucz szyfrowania.");
         if(profile.DailyMinute is <0 or >=1440) throw new ArgumentException("Niepoprawna godzina harmonogramu.");
     }
-    internal async Task<RunRecord?> RunAsync(BackupProfile profile,JobSecrets secrets,DateTimeOffset now,string? logon=null)
+    internal async Task<RunRecord?> RunAsync(BackupProfile profile,JobSecrets secrets,DateTimeOffset now,string? logon=null,string? boot=null)
     {
         if(!await gate.WaitAsync(0)) return null;
         using var cancellation=new CancellationTokenSource();
@@ -135,7 +135,7 @@ internal sealed class JobEngine
         var record=new RunRecord{ProfileId=profile.Id,Name=profile.Name,Started=now,State=RunState.Running,Content=profile.Content};
         try
         {
-            SchedulePolicy.MarkAttempt(profile,now,logon);
+            SchedulePolicy.MarkAttempt(profile,now,logon,boot);
             store.Data.History.Add(record); store.Save();
             secrets=VaultKeys.Prepare(store,profile,secrets);
             Validate(profile,secrets);

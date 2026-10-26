@@ -24,6 +24,8 @@ internal sealed class BackupProfile
     public PendingSystemImage? PendingSystemImage { get; set; }
     public bool Enabled { get; set; } = true;
     public bool AtLogon { get; set; }
+    public bool AtBoot { get; set; }
+    public string? LastBoot { get; set; }
     public bool Daily { get; set; }
     public int DailyMinute { get; set; } = 20 * 60;
     public string? ProtectedSecrets { get; set; }
@@ -109,7 +111,7 @@ internal static class StudioCredentials
     internal static void Forget(StudioStore store)
     {
         store.Data.ProtectedAccount=null;
-        foreach(var p in store.Data.Profiles) { p.ProtectedSecrets=null; p.AtLogon=p.Daily=false; }
+        foreach(var p in store.Data.Profiles) { p.ProtectedSecrets=null; p.AtLogon=p.AtBoot=p.Daily=false; }
         store.Save();
     }
 }
@@ -225,16 +227,18 @@ internal static class StartupRegistration
 
 internal static class SchedulePolicy
 {
-    internal static bool Due(BackupProfile profile,DateTimeOffset now,string? logon,bool paused)
+    internal static bool Due(BackupProfile profile,DateTimeOffset now,string? logon,bool paused,string? boot=null)
     {
         if(paused||!profile.Enabled||profile.ProtectedSecrets is null) return false;
+        if(profile.AtBoot && boot is not null && profile.LastBoot!=boot) return true;
         if(profile.AtLogon && logon is not null && profile.LastLogon!=logon) return true;
         return profile.Daily && profile.DailyMinute is >=0 and <1440 &&
             now.Hour*60+now.Minute>=profile.DailyMinute && profile.LastDailyDate!=now.ToString("yyyy-MM-dd");
     }
-    internal static void MarkAttempt(BackupProfile profile,DateTimeOffset now,string? logon)
+    internal static void MarkAttempt(BackupProfile profile,DateTimeOffset now,string? logon,string? boot=null)
     {
         profile.LastAttempt=now;
+        if(profile.AtBoot && boot is not null) profile.LastBoot=boot;
         if(profile.AtLogon && logon is not null) profile.LastLogon=logon;
         if(profile.Daily && now.Hour*60+now.Minute>=profile.DailyMinute) profile.LastDailyDate=now.ToString("yyyy-MM-dd");
     }

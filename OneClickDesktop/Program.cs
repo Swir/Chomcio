@@ -10,6 +10,12 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if(args.Length==2&&args[0]==BackgroundCopies.Switch)
+        {
+            try{Environment.ExitCode=BackgroundCopies.RunOnce(Path.GetFullPath(args[1]));}
+            catch(Exception){Environment.ExitCode=1;}
+            return;
+        }
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);

@@ -2,6 +2,13 @@
 
 ## Niewydane — przygotowanie kopii Windows, 2026-10-26
 
+- Dodano opcjonalną pracę przez Harmonogram Windows przy zamkniętym programie,
+  także przed zalogowaniem. Zadanie działa na zwykłym koncie i odczytuje klucze
+  chronione przez DPAPI. Hasła Windows nie zapisuje się w ustawieniach Chomcio.
+- Dodano kopię po uruchomieniu komputera, wspólną blokadę GUI/procesu w tle
+  i możliwość bezpiecznego zatrzymania kopii przed otwarciem programu.
+  Potwierdzono dwie lokalne kopie przed logowaniem, rozdzielone restartem VM,
+  oraz osobny mały test gotowego EXE z rzeczywistym Chomikuj.
 - Naprawiono zapis i odtwarzanie w głęboko zagnieżdżonych katalogach Windows.
   Natywne operacje otrzymują pełną postać długiej ścieżki; zachowano kontrolę
   uprawnień, integralności i odmowę nadpisania istniejących danych.

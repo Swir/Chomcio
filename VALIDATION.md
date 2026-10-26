@@ -1,5 +1,43 @@
 # Sprawdzenie wydania 1.0.0
 
+## Kandydat roboczy r8 — automatyka, 26 października 2026
+
+Dodano osobny tryb EXE wykonywany przez Harmonogram Windows na zwykłym koncie
+użytkownika, także bez interaktywnego logowania. Używa tego samego silnika kopii,
+zapisanych kluczy DPAPI i historii. Wspólna blokada między sesjami chroni ustawienia
+przed jednoczesnym zapisem przez GUI i proces w tle. Zadanie ma ograniczone
+uprawnienia; hasło konta Windows przekazywane jest Harmonogramowi, nie do JSON.
+
+| Kontrola | Wynik i zakres |
+| --- | --- |
+| Studio po dodaniu procesu w tle | PASS: 256 kontroli syntetycznych |
+| Końcowy mały zestaw automatyki | PASS: 20; rzeczywista lokalna kopia/odtworzenie, blokada drugiego procesu, pauza, błąd DPAPI, brak powtórzenia w tym samym starcie, opis w GUI |
+| Rejestracja przez zwykłe konto i kopia przed logowaniem w VM | PASS: zadanie Password / Limited, sesja 0, brak zalogowanego użytkownika, dwa odtworzone pliki identyczne |
+| Rzeczywisty restart tej samej VM | PASS: druga kopia bez logowania, poprzednia zachowana, ponowne odtworzenie dwóch plików; zadanie testowe usunięte, VM normalnie wyłączona |
+| Gotowe EXE bez okna → rzeczywisty Chomikuj → niezależne pobranie i odtworzenie | PASS: dwa sztuczne pliki, 2092 bajty, szyfrowanie, folder z datą i hasłem, zgodność bajtów, brak nowej kopii przy ponownym wywołaniu |
+
+Próba Chomikuj działała w sesji gospodarza; **nie jest dowodem wysyłania do chmury
+przed logowaniem**. Próby VM dotyczyły plików na dysku testowym i nie tworzyły
+obrazu Windows. VM miała 3 GiB RAM, Secure Boot i TPM oraz brak karty sieciowej.
+Nie rejestrowano zadań na gospodarzu i nie odczytywano jego dysku C jako źródła kopii.
+
+Pierwsza próba natywna zatrzymała się przed przekazaniem hasła: narzędzie testowe
+sprawdzało tożsamość klienta potoku przed odczytem jego pierwszej wiadomości.
+Poprawiono protokół próby: najpierw komunikat gotowości, potem kontrola SID,
+dopiero potem dane dla Harmonogramu. Hasła nie trafiły do plików, argumentów ani logów.
+
+Po teście natywnym poprawiono wyłącznie opis opcji startowej w GUI i włączenie
+zwykłego autostartu przy wybraniu tej opcji. Końcowy zestaw 20 kontroli oraz
+rzeczywisty test Chomikuj używały końcowej kompilacji. CLI, worker oraz algorytmy
+Core/Cloud pozostały niezmienione; zachowano ich wcześniejsze wyniki zamiast
+ponawiać duży transfer i cały zestaw testów. R8 zawiera GUI, CLI i worker,
+bez narzędzi laboratoryjnych, danych konta ani kopii testowych.
+
+Publiczne wydanie nadal ma status **Preview**. Do pełnego Stable pozostają
+kwalifikacja całego procesu Windows przez gotowy produkt, nośnik ratunkowy
+i pełny codzienny cykl systemowy do chmury. Mały test plików ich nie zastępuje.
+Obsługę nowej funkcji opisuje [automatyka w tle](docs/BACKGROUND-COPIES.md).
+
 ## Kandydat roboczy r7 — 26 października 2026
 
 Naprawiono błąd końcowego zapisu do zwykłej ścieżki DOS dłuższej niż 260 znaków

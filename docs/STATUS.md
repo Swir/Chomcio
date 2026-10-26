@@ -14,6 +14,9 @@ Poniższe obszary opisują stan funkcji; nie są punktami przyjętego modelu pro
 
 - Kopie plików i folderów, szyfrowanie, kontrola integralności oraz przywracanie.
 - Wcześniejsze rzeczywiste wysłanie, pobranie i odtworzenie plików z Chomikuj.
+- Nowy tryb bez okna: mała kopia do Chomikuj, niezależne pobranie i porównanie
+  odtworzonych plików z gotowego EXE. Osobno: lokalne kopie przed logowaniem
+  i po rzeczywistym restarcie VM na zwykłym koncie Windows.
 - Kompilacja GUI/CLI, testy standardowe i kontrola publikowanej paczki opisane w [VALIDATION.md](../VALIDATION.md).
 - Wcześniejszy test obrazu w izolowanych VM: Windows/VSS, szyfrowany transport przez Chomikuj, pobranie, odtworzenie i start systemu. Test korzystał z pomocniczego przekazania danych między VM a gospodarzem; nie kwalifikuje pełnego procesu w produkcie.
 
@@ -23,7 +26,9 @@ Poniższe obszary opisują stan funkcji; nie są punktami przyjętego modelu pro
 - Kompletny proces obrazu Windows, wysłania, niezależnego pobrania i odzyskania za pomocą dostarczonej aplikacji.
 - Kreator nośnika ratunkowego USB/WinPE oraz sprawdzony proces odtworzenia na pustym dysku.
 - Interaktywne logowanie w procesie systemowym i pełny codzienny cykl kopii systemu.
-- Rzeczywista kopia do chmury po wylogowaniu i restarcie; start samego modułu obrazu po restarcie przeszedł test VM. Usługa kopii plików przed logowaniem nie jest ukończona.
+- Rzeczywista kopia do chmury po wylogowaniu i restarcie. Nowe zadanie
+  Harmonogramu wykonało lokalne kopie przed logowaniem i po restarcie, ale
+  ta VM nie miała dostępu do sieci; nie łączyć zakresów dwóch osobnych prób.
 
 Oznaczenie Stable wymaga ukończenia i udokumentowania tych przepływów.
 Testy systemowe prowadzi się wyłącznie w izolowanych maszynach na ich własnych
@@ -31,6 +36,9 @@ dyskach. Aktualizacja README nie zmienia stanu wykonania powyższych prac.
 
 ## Zmiany przygotowane 26 października 2026 — jeszcze niewydane
 
+- Dodano [kopie przy zamkniętym programie](BACKGROUND-COPIES.md) i opcję
+  wykonania kopii po uruchomieniu komputera. Zadanie pracuje bez praw
+  administratora; GUI i proces w tle współdzielą blokadę ustawień.
 - Naprawiono obsługę długich ścieżek przy zapisie, eksporcie i odtwarzaniu.
   Po poprawce pełny test Core zakończył się 673 kontrolami PASS; sprawdzono
   także zachowanie odmowy nadpisania istniejących danych.

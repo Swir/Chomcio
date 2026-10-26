@@ -10,6 +10,15 @@ internal static class StudioSmoke
     private static async Task Fails(Func<Task> action,string label){bool failed=false;try{await action();}catch(Exception e)when(e is IOException or InvalidDataException or ArgumentException or CryptographicException or System.Text.Json.JsonException){failed=true;}Check(failed,label);}
     [STAThread]private static int Main(string[] args)
     {
+        if(args.Length==2&&args[0]=="--background-cloud")return BackgroundCloudProbe.Run(args[1]);
+        if(args.Length==2&&args[0]=="--background-native")return InstalledBackgroundProbe.Run(args[1]);
+        if(args.Length==3&&args[0]=="--background-lease")
+        {try{BackgroundCopyScenarios.Hold(args[1],args[2]);return 0;}catch(Exception){return 1;}}
+        if(args.Length==2&&args[0]=="--background-copies")
+        {
+            try{BackgroundCopyScenarios.Run(Path.GetFullPath(args[1]),Check);Console.WriteLine($"Checks: {checks}");return 0;}
+            catch(Exception e){Console.Error.WriteLine(e);return 1;}
+        }
         if(args.Length==2&&args[0]=="--recovery-guide")
         {
             try{Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);Application.EnableVisualStyles();RecoveryGuideScenarios.Run(Path.GetFullPath(args[1]),Check);Console.WriteLine($"Checks: {checks}");return 0;}
