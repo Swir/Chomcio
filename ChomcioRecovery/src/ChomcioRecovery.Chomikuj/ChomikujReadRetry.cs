@@ -77,9 +77,33 @@ public sealed partial class ChomikujClient
 
     // Preserve classification without retaining a raw inner exception that
     // could expose a signed URL through Exception.ToString().
-    private sealed class CloudTransportException(string message, HttpRequestError error) : IOException(message)
+    private sealed class CloudTransportException : IOException
     {
-        public HttpRequestError HttpRequestError { get; } = error;
+        public HttpRequestError HttpRequestError { get; }
+        public int? NativeErrorCode { get; }
+        public int? CauseHResult { get; }
+        public string? CauseKind { get; }
+        internal CloudTransportException(string message,HttpRequestError error):this(message,error,null){}
+        internal CloudTransportException(string message,HttpRequestError error,Exception? cause):base(message)
+        {
+            HttpRequestError=error;
+            // Keep only bounded numeric diagnostics and fixed categories. Never
+            // retain the raw exception, its message, data, URL or stack text.
+            for(int depth=0;cause is not null&&depth<8;depth++,cause=cause.InnerException)
+            {
+                CauseHResult=cause.HResult;
+                CauseKind=cause switch
+                {
+                    System.Net.Sockets.SocketException=>"Socket",
+                    System.ComponentModel.Win32Exception=>"Windows",
+                    System.Security.Authentication.AuthenticationException=>"Authentication",
+                    HttpRequestException=>"Http",
+                    IOException=>"IO",
+                    _=>"Other"
+                };
+                if(cause is System.ComponentModel.Win32Exception native)NativeErrorCode=native.NativeErrorCode;
+            }
+        }
     }
 
     private sealed class CloudHttpException(HttpStatusCode code, TimeSpan? retryAfter)

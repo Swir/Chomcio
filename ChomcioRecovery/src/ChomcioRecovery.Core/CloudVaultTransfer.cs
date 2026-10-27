@@ -73,9 +73,11 @@ public sealed class CloudVaultTransfer(ICloudVault remote)
 
     public async Task<IReadOnlyList<string>> ListSnapshotsAsync(CancellationToken token)
     {
-        var index = UniqueIndex(await remote.ListAsync(token));
-        if (!index.ContainsKey("repo.json")) return Array.Empty<string>();
-        return index.Keys.Where(n => n.Length == 37 && n.EndsWith(".snap", StringComparison.Ordinal)
+        var names=await remote.ListNamesAsync(token);
+        var unique=new HashSet<string>(names,StringComparer.Ordinal);
+        if(unique.Count!=names.Count)throw new InvalidDataException("Powielona nazwa w folderze kopii. Wybierz odrębny folder dla jednego sejfu.");
+        if (!unique.Contains("repo.json")) return Array.Empty<string>();
+        return unique.Where(n => n.Length == 37 && n.EndsWith(".snap", StringComparison.Ordinal)
             && n[..32].All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f'))
             .Select(n => n[..32]).OrderBy(n => n, StringComparer.Ordinal).ToArray();
     }

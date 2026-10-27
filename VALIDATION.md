@@ -1,5 +1,27 @@
 # Sprawdzenie wydania 1.0.0
 
+## Lista dużych kopii i diagnostyka — 27 października 2026
+
+Próba r9 zatrzymała się w odczycie dokładnych rozmiarów plików, przed pobraniem
+fragmentów. Raport wskazuje `CloudTransportException / Unknown`, bez HTTP ani
+Retry-After; pierwotny kod Windows nie był zachowany. Nie ustalono jeszcze
+konkretnej przyczyny błędu transportu. Stare 1484 fragmenty pozostają dostępne.
+
+Wykryto zbędny pełny odczyt rozmiarów przy samym wyświetlaniu listy kopii.
+Nowa ścieżka odkrywania używa wyłącznie nazw i nie potwierdza kompletności kopii.
+Dokładne listowanie, kontrola długości i kryptografia podczas pobierania oraz
+wysyłania pozostały bez zmian. Nieznany błąd połączenia nadal zatrzymuje próbę;
+diagnostyka zachowuje teraz tylko bezpieczne kody i stałą kategorię przyczyny.
+
+- Cloud: PASS, 150 kontroli, w tym 12 nowych dotyczących szybkiej listy,
+  duplikatów, anulowania, dokładnych rozmiarów i bezpiecznej diagnostyki.
+- Studio: PASS, 14 kontroli wznowienia na końcowej kompilacji Release.
+- Nieznane błędy i błędy certyfikatów pozostają bez automatycznych ponowień.
+  Testy sprawdzają też brak surowych wyjątków i sekretów w diagnostyce.
+
+Testy syntetyczne nie potwierdzają jeszcze zakończenia rzeczywistego pobrania
+dużego obrazu. Publiczne wydanie pozostaje Preview.
+
 ## Poprawka wznowienia pobierania — 27 października 2026
 
 Rzeczywiste wysłanie drugiego obrazu testowego Windows (7 986 038 825 bajtów)

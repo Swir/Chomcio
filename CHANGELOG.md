@@ -1,5 +1,14 @@
 # Historia wydań
 
+## Niewydane — lista dużych kopii i diagnostyka połączenia, 2026-10-27
+
+- Wyświetlenie listy kopii na Chomikuj korzysta z nazw rekordów i nie sprawdza
+  ponownie rozmiaru każdego fragmentu. Pobieranie oraz wysyłanie nadal wymagają
+  dokładnych rozmiarów i pełnej kontroli integralności.
+- Błędy połączenia zachowują bezpieczny kod Windows i kategorię przyczyny,
+  bez surowego wyjątku, adresów plików i tokenów. Nie rozszerzono automatycznych
+  ponowień na nieznane błędy ani błędy certyfikatów.
+
 ## Niewydane — wznowienie pobierania, 2026-10-27
 
 - Przerwane pobieranie pamięta zaszyfrowane fragmenty także po zamknięciu programu.

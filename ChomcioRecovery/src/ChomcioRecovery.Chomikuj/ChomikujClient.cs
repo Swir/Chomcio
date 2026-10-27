@@ -116,6 +116,8 @@ public sealed partial class ChomikujClient : IDisposable
     private sealed class FolderVault(ChomikujClient client, ChomikujFolder folder) : ICloudVault
     {
         public Task<IReadOnlyList<CloudObject>> ListAsync(CancellationToken cancellationToken) => client.ListFilesAsync(folder, cancellationToken);
+        public async Task<IReadOnlyList<string>> ListNamesAsync(CancellationToken cancellationToken) =>
+            (await client.ListFilesAsync(folder,cancellationToken,resolveLengths:false)).Select(file=>file.Name).ToArray();
         public Task<CloudObject> UploadAsync(string name, Stream encryptedContent, long length, CancellationToken cancellationToken) =>
             client.UploadAsync(folder, name, encryptedContent, length, cancellationToken);
         public Task DownloadAsync(CloudObject file, Stream destination, long maximumBytes, CancellationToken cancellationToken) =>
@@ -312,7 +314,7 @@ public sealed partial class ChomikujClient : IDisposable
             for (Exception? inner = error.InnerException; inner is not null; inner = inner.InnerException)
                 if (inner is SocketException socket) { reason += "/" + socket.SocketErrorCode; break; }
             throw new CloudTransportException(operation + " HTTPS: " + endpoint + " — " + reason +
-                ". Operacja nie została potwierdzona.", error.HttpRequestError);
+                ". Operacja nie została potwierdzona.", error.HttpRequestError,error);
         }
     }
 
@@ -348,7 +350,7 @@ public sealed partial class ChomikujClient : IDisposable
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw new OperationCanceledException(ct); }
         catch (OperationCanceledException) { throw new CloudReadTimeoutException(); }
-        catch (HttpRequestException error) { throw new CloudTransportException("Nie udało się połączyć z Chomikuj przez HTTPS.", error.HttpRequestError); }
+        catch (HttpRequestException error) { throw new CloudTransportException("Nie udało się połączyć z Chomikuj przez HTTPS.", error.HttpRequestError,error); }
     }
 
     private static async Task<XElement> ReadXmlAsync(HttpResponseMessage response, CancellationToken ct)

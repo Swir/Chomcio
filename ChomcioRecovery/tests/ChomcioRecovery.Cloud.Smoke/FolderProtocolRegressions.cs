@@ -46,6 +46,9 @@ internal static class FolderProtocolRegressions
         var transfer = new CloudVaultTransfer(cloud);
         await transfer.UploadSnapshotAsync(repository, password, snapshot, newPath("soap-export"), null, default);
         check(handler.Stored.Count >= 4, "all encrypted records uploaded through real adapter");
+        int readsBeforeListing=handler.Downloads;
+        check((await transfer.ListSnapshotsAsync(default)).SequenceEqual(new[]{snapshot}),"name-only discovery finds actual encrypted snapshot");
+        check(handler.Downloads==readsBeforeListing,"displaying snapshot list does not probe every file's HTTP length");
         string downloaded = newPath("soap-download");
         await transfer.DownloadSnapshotAsync(snapshot, password, downloaded, null, default);
         using (var vault = LocalEncryptedVault.Open(downloaded, password)) vault.VerifySnapshot(snapshot);
