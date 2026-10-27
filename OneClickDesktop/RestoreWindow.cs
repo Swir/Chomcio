@@ -49,7 +49,13 @@ internal sealed class RestoreSession : IDisposable
                 repo=recoveryParent is not null?SystemImageStorage.RecoveryRepository(recoveryParent,Guid.NewGuid().ToString("N")):
                     Path.Combine(store.Root,"restores",Guid.NewGuid().ToString("N"),"encrypted");
                 Directory.CreateDirectory(Path.GetDirectoryName(repo)!);
-                await remote.DownloadSnapshotAsync(id,secrets.VaultPassword,repo,progress,token);downloaded.Add(id,repo);
+                var cache=new RestoreDownloadCache(store,profile.Id,id,secrets.CloudLogin);
+                string? previous=cache.Find();
+                // Local authentication can involve many GB. Keep it off the UI
+                // thread, even when the transport completes synchronously.
+                try{await Task.Run(()=>remote.DownloadSnapshotAsync(id,secrets.VaultPassword,repo,progress,token,previous),token);}
+                finally{await Task.Run(()=>cache.Remember(repo));}
+                downloaded.Add(id,repo);
             }
         }
         var snapshot=await Task.Run(()=>{using var vault=LocalEncryptedVault.Open(repo,secrets.VaultPassword);vault.VerifySnapshot(id,token);return vault.ReadSnapshot(id,token);},token);

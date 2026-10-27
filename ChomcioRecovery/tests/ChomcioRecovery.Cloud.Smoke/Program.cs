@@ -90,6 +90,7 @@ try
     await FolderProtectionTests.Run(Check,Fails);
     await ReadRetryTests.Run(Check, Fails);
     await TransferProgressScenarios.Run(repo,password,id,New,Check);
+    await DownloadResumeScenarios.Run(repo,password,id,New,Check);
     Console.WriteLine($"CHOMCIO_CLOUD_ENGINE_PROTOCOL_SMOKE=PASS assertions={checks}");
     Console.WriteLine("LIVE_CHOMIKUJ_ACCOUNT=NOT_TESTED (local deterministic transport)");
 }

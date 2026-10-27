@@ -1571,6 +1571,21 @@ public sealed class LocalEncryptedVault : IDisposable
         finally { CryptographicOperations.ZeroMemory(plaintext); }
     }
 
+    internal static void RequireSafeRepositoryReadPath(string path)=>EnsureNoReparsePointsInPath(path);
+
+    internal byte[] ReadAuthenticatedChunkForReuse(string previousRepository,string id,CancellationToken token)
+    {
+        CheckNotDisposed();token.ThrowIfCancellationRequested();ValidateObjectId(id);
+        byte[] captured=ReadBoundedFile(Path.Combine(previousRepository,"objects",id[..2],id+".obj"),ChunkBytes+HeaderBytes,token);
+        try
+        {
+            AuthenticateCapturedImportedChunk(id,captured);
+            token.ThrowIfCancellationRequested();
+            return captured;
+        }
+        catch{CryptographicOperations.ZeroMemory(captured);throw;}
+    }
+
     // Fault observer is ONLY available to friend-assembly native smoke tests.
     // A post-decryption exception/cancel must not strand authenticated plaintext
     // in the managed heap. Normal callers pass null and own the returned bytes.

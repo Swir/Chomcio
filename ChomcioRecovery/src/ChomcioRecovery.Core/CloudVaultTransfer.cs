@@ -80,13 +80,28 @@ public sealed class CloudVaultTransfer(ICloudVault remote)
             .Select(n => n[..32]).OrderBy(n => n, StringComparer.Ordinal).ToArray();
     }
 
-    public async Task DownloadSnapshotAsync(string snapshotId, string password, string newRepository,
+    public Task DownloadSnapshotAsync(string snapshotId, string password, string newRepository,
         IProgress<CloudProgress>? progress, CancellationToken token)
+        => DownloadSnapshotAsync(snapshotId,password,newRepository,progress,token,null);
+
+    // A failed attempt is a read-only source, never an output to reopen or
+    // overwrite. Metadata is fetched afresh; reuse is authenticated with the
+    // current cloud vault key and expected object ID before any copied write.
+    public async Task DownloadSnapshotAsync(string snapshotId, string password, string newRepository,
+        IProgress<CloudProgress>? progress, CancellationToken token,string? previousRepository)
     {
+        token.ThrowIfCancellationRequested();
         if (snapshotId.Length != 32 || !snapshotId.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f'))
             throw new ArgumentException("Niepoprawny identyfikator kopii.");
         if (Directory.Exists(newRepository) || File.Exists(newRepository))
             throw new IOException("Pobieranie wymaga nowego katalogu.");
+        if(previousRepository is not null)
+        {
+            previousRepository=Path.GetFullPath(previousRepository);
+            if(!Directory.Exists(previousRepository))throw new DirectoryNotFoundException("Brak wcześniejszej próby pobierania.");
+            LocalEncryptedVault.RequireSafeRepositoryReadPath(previousRepository);
+            LocalEncryptedVault.EnsureRepositoryPathDisjoint(previousRepository,newRepository);
+        }
         var index = UniqueIndex(await remote.ListAsync(token));
         if (!index.ContainsKey("repo.json") || !index.ContainsKey(snapshotId + ".snap"))
             throw new InvalidDataException("Niekompletna kopia w chmurze.");
@@ -105,9 +120,27 @@ public sealed class CloudVaultTransfer(ICloudVault remote)
             token.ThrowIfCancellationRequested();
             string parent = Path.Combine(newRepository, "objects", id[..2]);
             Directory.CreateDirectory(parent);
-            await Fetch(id + ".obj", Path.Combine(parent, id + ".obj"), ObjectLimit);
+            bool reused=false;
+            if(previousRepository is not null)
+            {
+                byte[]? captured=null;
+                try
+                {
+                    captured=vault.ReadAuthenticatedChunkForReuse(previousRepository,id,token);
+                    if(!index.TryGetValue(id+".obj",out var listed)||captured.Length!=listed.Length)
+                        throw new InvalidDataException("Wcześniej pobrany fragment ma inny rozmiar.");
+                }
+                catch(Exception error) when(error is FileNotFoundException or DirectoryNotFoundException or InvalidDataException or CryptographicException)
+                {if(captured is not null)CryptographicOperations.ZeroMemory(captured);captured=null;}
+                if(captured is not null)
+                {
+                    try{token.ThrowIfCancellationRequested();LocalEncryptedVault.WriteAtomic(Path.Combine(parent,id+".obj"),captured,cancellationToken:token);reused=true;}
+                    finally{CryptographicOperations.ZeroMemory(captured);}
+                }
+            }
+            if(!reused)await Fetch(id + ".obj", Path.Combine(parent, id + ".obj"), ObjectLimit);
             bytes = checked(bytes + index[id + ".obj"].Length);
-            progress?.Report(new("Pobieranie zaszyfrowanych fragmentów", ++completed, ids.Length, bytes));
+            progress?.Report(new(reused?"Sprawdzono wcześniej pobrany fragment":"Pobieranie zaszyfrowanych fragmentów", ++completed, ids.Length, bytes));
         }
         vault.VerifySnapshot(snapshotId, token);
 

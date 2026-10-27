@@ -1,5 +1,13 @@
 # Historia wydań
 
+## Niewydane — wznowienie pobierania, 2026-10-27
+
+- Przerwane pobieranie pamięta zaszyfrowane fragmenty także po zamknięciu programu.
+  Ponowne przywracanie tej samej kopii uwierzytelnia je i pobiera brakujące lub
+  uszkodzone fragmenty. Stary katalog pozostaje bez zmian, wynik trafia do nowego.
+- Konfiguracja sejfu i opis kopii są zawsze pobierane ponownie z chmury.
+  Zachowano kontrolę integralności, anulowanie oraz odmowę nadpisania danych.
+
 ## Niewydane — przygotowanie kopii Windows, 2026-10-26
 
 - Dodano opcjonalną pracę przez Harmonogram Windows przy zamkniętym programie,

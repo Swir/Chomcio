@@ -1,5 +1,30 @@
 # Sprawdzenie wydania 1.0.0
 
+## Poprawka wznowienia pobierania — 27 października 2026
+
+Rzeczywiste wysłanie drugiego obrazu testowego Windows (7 986 038 825 bajtów)
+zakończyło się z odczytem kontrolnym. Niezależne pobieranie przerwał błąd
+połączenia po zachowaniu 1484 zaszyfrowanych fragmentów. Nie potwierdzono jeszcze
+kompletności pobrania ani uruchomienia Windows z tej konkretnej kopii.
+
+Naprawiono brak wykorzystania częściowego pobrania: przy ponowieniu aplikacja
+tworzy nowy katalog i odczytuje świeżą konfigurację oraz opis kopii z chmury.
+Wcześniejsze fragmenty można wykorzystać dopiero po uwierzytelnieniu AES-GCM,
+sprawdzeniu identyfikatora HMAC i długości. Brakujący lub uszkodzony fragment
+jest pobierany ponownie; wcześniejsze dane pozostają niezmienione. Osobny plik
+wskazujący pobranie nie przechowuje haseł i nie nadpisuje ustawień harmonogramu.
+
+- Cloud: PASS, 138 kontroli, w tym 12 nowych kontroli wznowienia, uszkodzeń,
+  nieprawidłowego fragmentu, świeżych metadanych, anulowania i braku pliku w chmurze.
+- Aplikacja: PASS, 14 kontroli automatycznego wznowienia po nowej sesji,
+  zgodności odtworzonych plików, zachowania starych fragmentów i ustawień,
+  rozdzielenia kont/profili/kopii oraz uszkodzonego pliku wskazującego pobranie.
+- Kompilacja zmienionych projektów: bez błędów i ostrzeżeń.
+
+To krótkie testy syntetyczne bez konta sieciowego. Rzeczywiste wznowienie dużego
+pobrania i dalsze odtwarzanie wymagają oddzielnego potwierdzenia. Nie zmieniono
+oznaczenia publicznego wydania na Stable.
+
 ## Kandydat roboczy r8 — automatyka, 26 października 2026
 
 Dodano osobny tryb EXE wykonywany przez Harmonogram Windows na zwykłym koncie

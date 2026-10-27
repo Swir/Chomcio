@@ -19,6 +19,8 @@ foreach($suite in @('Core','Cloud','Studio')){
  & dotnet @testArgs
  if($LASTEXITCODE -ne 0){throw ('Checks failed: '+$suite)}
  if($suite -eq 'Studio'){
+  & ([IO.Path]::ChangeExtension($dll,'.exe')) --download-resume (Join-Path $OutputDirectory 'download-resume')
+  if($LASTEXITCODE -ne 0){throw 'Download resume checks failed.'}
   & ([IO.Path]::ChangeExtension($dll,'.exe')) --background-copies (Join-Path $OutputDirectory 'background')
   if($LASTEXITCODE -ne 0){throw 'Background checks failed.'}
  }
