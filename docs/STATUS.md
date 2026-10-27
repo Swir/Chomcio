@@ -19,12 +19,17 @@ Poniższe obszary opisują stan funkcji; nie są punktami przyjętego modelu pro
   i po rzeczywistym restarcie VM na zwykłym koncie Windows.
 - Kompilacja GUI/CLI, testy standardowe i kontrola publikowanej paczki opisane w [VALIDATION.md](../VALIDATION.md).
 - Wcześniejszy test obrazu w izolowanych VM: Windows/VSS, szyfrowany transport przez Chomikuj, pobranie, odtworzenie i start systemu. Test korzystał z pomocniczego przekazania danych między VM a gospodarzem; nie kwalifikuje pełnego procesu w produkcie.
+- 27 października: drugi obraz przeszedł produkcyjne wysłanie, wznowienie niezależnego
+  pobierania i przygotowanie odzyskiwania. Po odtworzeniu na pustym dysku Windows
+  uruchomił się z odłączoną kopią i ISO; pliki, syntetyczne programy i ustawienia
+  zgadzały się. VM wyłączono normalnie. Ta próba używała prywatnego WinRE
+  i sterowania laboratoryjnego; nie zastępuje kwalifikacji przewodnika użytkownika.
 
 ## Co pozostaje do ukończenia
 
 - Kwalifikacja całego przejścia przez interaktywny kreator Windows na zwykłym koncie; instalator EXE i odczyt planu pod tokenem zwykłego użytkownika przeszły test VM.
 - Kompletny proces obrazu Windows, wysłania, niezależnego pobrania i odzyskania za pomocą dostarczonej aplikacji.
-- Kreator nośnika ratunkowego USB/WinPE oraz sprawdzony proces odtworzenia na pustym dysku.
+- Przewodnik nośnika ratunkowego USB/WinRE i odzyskanie przez dostarczoną ścieżkę użytkownika; odtworzenie na pustym dysku zostało już potwierdzone laboratoryjnie.
 - Interaktywne logowanie w procesie systemowym i pełny codzienny cykl kopii systemu.
 - Rzeczywista kopia do chmury po wylogowaniu i restarcie. Nowe zadanie
   Harmonogramu wykonało lokalne kopie przed logowaniem i po restarcie, ale

@@ -1,5 +1,35 @@
 # Sprawdzenie wydania 1.0.0
 
+## Obraz r10 z Chomikuj i uruchomienie Windows — 27 października 2026
+
+Niezależne pobranie drugiego obrazu testowego Windows zakończyło się powodzeniem.
+Archiwum ma 7 986 038 825 bajtów; jego SHA-256 oraz rozmiar i SHA-256 opisu obrazu
+są identyczne z eksportem źródłowej VM i potwierdzeniem wysłania. Użyto nowego
+połączenia i nowego repozytorium. Wznowienie wykorzystało 1484 fragmenty wyłącznie
+z wcześniejszego niezależnego pobrania, po ich uwierzytelnieniu. Lokalny oryginał
+kopii nie był źródłem tych fragmentów.
+
+| Etap | Wynik |
+| --- | --- |
+| Produkcyjne wysłanie z odczytem kontrolnym | PASS; zachowany wynik r8, bez ponownego wysyłania |
+| Produkcyjne wznowienie i niezależne odtworzenie archiwum | PASS; r10, kod zakończenia 0 |
+| Przygotowanie obrazu przez `SystemImageRecovery.PrepareAsync` | PASS; 21 plików, 16 271 077 670 bajtów, kontrola przed i po publikacji |
+| Przygotowanie osobnego dysku wejściowego i prywatnego WinRE | PASS; obraz ponownie sprawdzony po kopiowaniu |
+| Odtworzenie na pustym dysku | PASS; WinRE zakończył odzyskiwanie kodem 0, dysk z kopią wykluczony z odtwarzania |
+| Uruchomienie odzyskanego Windows | PASS; Windows 11, kompilacja 26200, wyłącznie odzyskany dysk systemowy, odłączony dysk z kopią i ISO |
+| Zgodność plików, programów i ustawień | PASS; dwa wcześniejsze pliki oraz dwa elementy nowej dziennej próby, dwa syntetyczne programy CMD i ustawienia rejestru |
+
+Próba używała odizolowanej VM z 3 GiB RAM, włączonym Secure Boot i TPM, bez karty
+sieciowej. Szyfrowanie i transport używały produkcyjnego kodu; uruchomienie WinRE
+oraz porównania były sterowane narzędziami laboratoryjnymi. Sprawdzono wcześniej
+utworzony obraz testowego Windows, nie nową kopię systemu gospodarza.
+
+To dowody dotyczące konkretnej kopii syntetycznej VM. Do kwalifikacji pełnego
+produktu nadal potrzebne są dostarczona ścieżka nośnika/WinRE oraz pełny codzienny
+cykl systemowy do chmury przed logowaniem.
+Publiczne wydanie pozostaje Preview. Poniższe sekcje zachowują historię napraw
+i wcześniejszych prób; nie trzeba powtarzać ich zaliczonych zestawów bez zmiany kodu.
+
 ## Lista dużych kopii i diagnostyka — 27 października 2026
 
 Próba r9 zatrzymała się w odczycie dokładnych rozmiarów plików, przed pobraniem
@@ -19,15 +49,15 @@ diagnostyka zachowuje teraz tylko bezpieczne kody i stałą kategorię przyczyny
 - Nieznane błędy i błędy certyfikatów pozostają bez automatycznych ponowień.
   Testy sprawdzają też brak surowych wyjątków i sekretów w diagnostyce.
 
-Testy syntetyczne nie potwierdzają jeszcze zakończenia rzeczywistego pobrania
-dużego obrazu. Publiczne wydanie pozostaje Preview.
+Same testy syntetyczne nie potwierdzały rzeczywistego pobrania dużego obrazu.
+Późniejszy wynik r10 opisano powyżej. Publiczne wydanie pozostaje Preview.
 
 ## Poprawka wznowienia pobierania — 27 października 2026
 
 Rzeczywiste wysłanie drugiego obrazu testowego Windows (7 986 038 825 bajtów)
 zakończyło się z odczytem kontrolnym. Niezależne pobieranie przerwał błąd
-połączenia po zachowaniu 1484 zaszyfrowanych fragmentów. Nie potwierdzono jeszcze
-kompletności pobrania ani uruchomienia Windows z tej konkretnej kopii.
+połączenia po zachowaniu 1484 zaszyfrowanych fragmentów. Na tym etapie nie było
+jeszcze potwierdzenia kompletności pobrania ani uruchomienia Windows z tej kopii.
 
 Naprawiono brak wykorzystania częściowego pobrania: przy ponowieniu aplikacja
 tworzy nowy katalog i odczytuje świeżą konfigurację oraz opis kopii z chmury.
@@ -43,9 +73,8 @@ wskazujący pobranie nie przechowuje haseł i nie nadpisuje ustawień harmonogra
   rozdzielenia kont/profili/kopii oraz uszkodzonego pliku wskazującego pobranie.
 - Kompilacja zmienionych projektów: bez błędów i ostrzeżeń.
 
-To krótkie testy syntetyczne bez konta sieciowego. Rzeczywiste wznowienie dużego
-pobrania i dalsze odtwarzanie wymagają oddzielnego potwierdzenia. Nie zmieniono
-oznaczenia publicznego wydania na Stable.
+Były to krótkie testy syntetyczne bez konta sieciowego. Późniejsze rzeczywiste
+wznowienie r10 opisano powyżej. Nie zmieniono oznaczenia publicznego wydania na Stable.
 
 ## Kandydat roboczy r8 — automatyka, 26 października 2026
 
