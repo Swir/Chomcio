@@ -278,7 +278,7 @@ public sealed partial class ChomikujClient : IDisposable
             }
             if (response.StatusCode != HttpStatusCode.OK)
             {
-                var error = SafeHttpError(response);
+                var error = SafeHttpError(response,HttpOperation.DownloadContent);
                 response.Dispose();
                 throw error;
             }
@@ -330,7 +330,7 @@ public sealed partial class ChomikujClient : IDisposable
         try
         {
             using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
-            if (!response.IsSuccessStatusCode) throw SafeHttpError(response);
+            if (!response.IsSuccessStatusCode) throw SafeHttpError(response,HttpOperation.SoapRequest);
             XElement doc = await ReadXmlAsync(response, deadline.Token);
             var result = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == action + "Result")
                 ?? throw new InvalidDataException("Niezgodna odpowiedź interfejsu Chomikuj.");
@@ -395,12 +395,12 @@ public sealed partial class ChomikujClient : IDisposable
     private static string RequiredText(XElement parent, string name) => Text(parent, name) is { Length: > 0 } text ? text : throw new InvalidDataException("Niepełna odpowiedź Chomikuj.");
     private static long ParseLength(string text) => long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out long n) && n >= 0 ? n : throw new InvalidDataException("Niepoprawny rozmiar pliku Chomikuj.");
     private static string EscapePathPart(string part) => Uri.EscapeDataString(part).Replace("%20", "+").Replace('%', '*');
-    private static IOException SafeHttpError(HttpResponseMessage response)
+    private static IOException SafeHttpError(HttpResponseMessage response,HttpOperation operation=HttpOperation.Unknown)
     {
         TimeSpan? retryAfter = response.Headers.RetryAfter?.Delta;
         if (retryAfter is null && response.Headers.RetryAfter?.Date is { } date)
             retryAfter = date - DateTimeOffset.UtcNow;
-        return new CloudHttpException(response.StatusCode, retryAfter);
+        return new CloudHttpException(response.StatusCode, retryAfter,operation);
     }
     public void Dispose() { token = accountId = accountName = ""; freshEmptyFolders.Clear(); ResetWebSession(); http.Dispose(); }
 }

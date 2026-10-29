@@ -39,7 +39,7 @@ public sealed partial class ChomikujClient
                 ["__RequestVerificationToken"] = webVerificationToken
             });
             using var response = await SendTransferAsync(request, "Adres wysyłania ze strony", deadline.Token);
-            if (!response.IsSuccessStatusCode) throw SafeHttpError(response);
+            if (!response.IsSuccessStatusCode) throw SafeHttpError(response,HttpOperation.UploadAddress);
             using var json = await ReadWebJsonAsync(response, deadline.Token);
             if (!json.RootElement.TryGetProperty("Url", out var value) || value.ValueKind != JsonValueKind.String ||
                 !Uri.TryCreate(value.GetString(), UriKind.Absolute, out var address))
@@ -58,7 +58,7 @@ public sealed partial class ChomikujClient
         // Do not retry an ambiguous send or treat its folder as new and empty.
         freshEmptyFolders.Remove(folder.Id);
         using var uploaded = await SendTransferAsync(upload, "Wysyłanie", ct);
-        if (!uploaded.IsSuccessStatusCode) throw SafeHttpError(uploaded);
+        if (!uploaded.IsSuccessStatusCode) throw SafeHttpError(uploaded,HttpOperation.UploadContent);
         using var result = await ReadWebJsonAsync(uploaded, ct);
         if (!result.RootElement.TryGetProperty("files", out var files) || files.ValueKind != JsonValueKind.Array || files.GetArrayLength() != 1)
             throw new IOException("Chomikuj nie potwierdził pojedynczego wysłanego pliku (WebUploadResult).");
@@ -97,7 +97,7 @@ public sealed partial class ChomikujClient
                 uri = SecureDownloadUri(location.IsAbsoluteUri ? location : new Uri(uri, location));
                 continue;
             }
-            if (!response.IsSuccessStatusCode) throw SafeHttpError(response);
+            if (!response.IsSuccessStatusCode) throw SafeHttpError(response,HttpOperation.WebSession);
             string html = await ReadWebTextAsync(response, deadline.Token);
             foreach (Match tag in Regex.Matches(html, "<input\\b[^>]*>", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1)))
             {

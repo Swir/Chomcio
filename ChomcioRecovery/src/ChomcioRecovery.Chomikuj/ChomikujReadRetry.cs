@@ -106,11 +106,21 @@ public sealed partial class ChomikujClient
         }
     }
 
-    // Expose only numeric response metadata, never the response body or URL.
-    public sealed class CloudHttpException(HttpStatusCode code, TimeSpan? retryAfter)
-        : IOException("Chomikuj: błąd HTTP " + (int)code + ". Operacja niepotwierdzona.")
+    // Expose numeric metadata and a closed operation category, never body or URL.
+    public enum HttpOperation { Unknown, SoapRequest, WebSession, UploadAddress, UploadContent, DownloadContent, FolderProtection }
+
+    public sealed class CloudHttpException : IOException
     {
-        public HttpStatusCode StatusCode { get; } = code;
-        public TimeSpan? RetryAfter { get; } = retryAfter;
+        public CloudHttpException(HttpStatusCode code, TimeSpan? retryAfter)
+            : this(code,retryAfter,HttpOperation.Unknown) { }
+        public CloudHttpException(HttpStatusCode code, TimeSpan? retryAfter,HttpOperation operation)
+            : base("Chomikuj: błąd HTTP " + (int)code + ". Operacja niepotwierdzona.")
+        {
+            StatusCode=code;RetryAfter=retryAfter;
+            Operation=Enum.IsDefined(operation)?operation:HttpOperation.Unknown;
+        }
+        public HttpStatusCode StatusCode { get; }
+        public TimeSpan? RetryAfter { get; }
+        public HttpOperation Operation { get; }
     }
 }

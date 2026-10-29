@@ -191,6 +191,7 @@ internal sealed class JobEngine
             {
                 record.HttpStatus=(int)http.StatusCode;
                 record.RetryAfterSeconds=http.RetryAfter?.TotalSeconds;
+                record.HttpOperation=http.Operation==ChomikujClient.HttpOperation.Unknown?null:http.Operation.ToString();
             }
             record.Detail=SafeError(error)+" Etap: "+record.FailureStage+" ["+record.FailureCode+"].";
         }
