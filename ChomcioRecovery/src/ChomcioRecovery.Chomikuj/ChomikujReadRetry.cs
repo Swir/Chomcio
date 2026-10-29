@@ -106,10 +106,11 @@ public sealed partial class ChomikujClient
         }
     }
 
-    private sealed class CloudHttpException(HttpStatusCode code, TimeSpan? retryAfter)
+    // Expose only numeric response metadata, never the response body or URL.
+    public sealed class CloudHttpException(HttpStatusCode code, TimeSpan? retryAfter)
         : IOException("Chomikuj: błąd HTTP " + (int)code + ". Operacja niepotwierdzona.")
     {
-        internal HttpStatusCode StatusCode { get; } = code;
-        internal TimeSpan? RetryAfter { get; } = retryAfter;
+        public HttpStatusCode StatusCode { get; } = code;
+        public TimeSpan? RetryAfter { get; } = retryAfter;
     }
 }

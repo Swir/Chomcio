@@ -10,6 +10,11 @@ internal static class StudioSmoke
     private static async Task Fails(Func<Task> action,string label){bool failed=false;try{await action();}catch(Exception e)when(e is IOException or InvalidDataException or ArgumentException or CryptographicException or System.Text.Json.JsonException){failed=true;}Check(failed,label);}
     [STAThread]private static int Main(string[] args)
     {
+        if(args.Length==2&&args[0]=="--cloud-http-failures")
+        {
+            try{CloudHttpFailureScenarios.Run(Path.GetFullPath(args[1]),Check).GetAwaiter().GetResult();Console.WriteLine($"Checks: {checks}");return 0;}
+            catch(Exception e){Console.Error.WriteLine(e);return 1;}
+        }
         if(args.Length==2&&args[0]=="--download-resume")
         {
             try{RestoreDownloadScenarios.Run(Path.GetFullPath(args[1]),Check).GetAwaiter().GetResult();Console.WriteLine($"Checks: {checks}");return 0;}

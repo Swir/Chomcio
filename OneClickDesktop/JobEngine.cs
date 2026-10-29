@@ -187,6 +187,11 @@ internal sealed class JobEngine
         {
             record.State=RunState.Failed;record.FailureStage=Phase;
             record.FailureCode=FailureId(error);
+            if(error is ChomikujClient.CloudHttpException http)
+            {
+                record.HttpStatus=(int)http.StatusCode;
+                record.RetryAfterSeconds=http.RetryAfter?.TotalSeconds;
+            }
             record.Detail=SafeError(error)+" Etap: "+record.FailureStage+" ["+record.FailureCode+"].";
         }
         finally
@@ -307,6 +312,8 @@ internal sealed class JobEngine
         UnauthorizedAccessException=>"Brak dostępu do folderu. Sprawdź uprawnienia i podłączenie dysku.",
         DirectoryNotFoundException=>"Folder źródłowy lub dysk kopii jest niedostępny.",
         ChomikujServiceException e=>e.Message,
+        ChomikujClient.CloudHttpException e=>"Chomikuj: błąd HTTP "+(int)e.StatusCode+". Kopia pozostaje do wznowienia."+
+            (e.RetryAfter is {TotalSeconds:>0} delay?" Serwer zaleca odczekać co najmniej "+Math.Ceiling(delay.TotalSeconds)+" s.":""),
         ChomikujReadException e=>e.Message,
         ChomikujFolderProtectionException e=>e.Message,
         OperationCanceledException=>"Serwer nie odpowiedział w wyznaczonym czasie. Ponów zadanie.",

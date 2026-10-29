@@ -60,6 +60,8 @@ internal sealed class RunRecord
     public string Detail { get; set; } = "";
     public string? FailureCode { get; set; }
     public string? FailureStage { get; set; }
+    public int? HttpStatus { get; set; }
+    public double? RetryAfterSeconds { get; set; }
     public string? Snapshot { get; set; }
     public BackupContent Content { get; set; }
     public string? ImageCaptureId { get; set; }
