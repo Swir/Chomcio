@@ -1,5 +1,37 @@
 # Sprawdzenie wydania 1.0.0
 
+## Wstępna lista nazw bez powtórnego pobierania — 30 października 2026
+
+R102 wdrożono do testowej VM. Harmonogram podjął zachowany punkt przed
+logowaniem, bez zmiany dat, nowego obrazu lub nowego katalogu eksportu.
+Próba zatrzymała się podczas łączenia z chmurą: `TIMEOUT`, operacja
+`DownloadContent`, rodzaj wyjątku `Cancellation`. Status HTTP i dokładna
+przyczyna przekroczenia czasu pozostają nieznane. Sześć niepowodzeń,
+oczekujący punkt i wszystkie eksporty zachowano; po świeżej kontroli
+bezczynności VM wyłączono normalnie.
+
+Analiza kodu wskazała nadmiarowy odczyt: sprawdzanie dostępności folderu
+przed transferem pobierało nagłówki każdego istniejącego pliku, choć na tym
+etapie potrzebna jest tylko poprawna lista nazw. Poprawka `46a406c` używa
+istniejącego API listy nazw. Nie zmienia rozpoznawania odpowiedzi usługi,
+ochrony folderu, ograniczenia zastępowania niedostępnego folderu ani
+uwierzytelniania eksportu. Późniejszy transfer nadal odczytuje dokładne
+rozmiary i porównuje pełne pobrane bajty; manifest wysyła na końcu.
+
+Regresja na poprzednim kodzie wykazała niepotrzebny odczyt danych już podczas
+łączenia. Na dokładnym zestawie końcowych bibliotek przeszło 28 nowych
+kontroli: lista 128 rekordów bez pobierania, późniejsze rzeczywiste długości
+zamiast wskazówek SOAP, pełne bajty i odmowa uciętej odpowiedzi, ochrona
+folderu, błędy usługi, zachowanie profilu oraz anulowanie. Wszystkie odpowiedzi
+były syntetyczne; nie wykonywano żądań do konta chmurowego.
+
+Zmienia się wyłącznie biblioteka aplikacji; Core, adapter, moduł obrazowania,
+TLS, limity czasu i ponawianie pozostają bez zmian. Usunięcie powtórnego
+odczytu nie wyjaśnia przyczyny awarii sieci i nie kwalifikuje dużego transferu.
+Kandydat r111 nie został jeszcze wdrożony. Nadal wymagane są ukończenie nowej
+dużej kopii, niezależne pobranie i pełna dostarczona ścieżka GUI/nośnika/WinRE.
+Stable nie zostało wydane.
+
 ## Wznowienie z zachowanego eksportu — 30 października 2026
 
 Ograniczony odczyt metadanych dysku testowego potwierdził pięć zachowanych
@@ -32,8 +64,9 @@ bez rzeczywistego konta chmurowego i bez uruchamiania VM.
 R102 zmienia aplikację i Core (także kopię Core używaną przez CLI).
 Adapter chmurowy, moduł obrazowania, kryptografia, limity czasu i zasady
 ponawiania żądań pozostały bez zmian. Nie powtarzano Cloud150/Studio14 ani
-wcześniejszych prób systemowych. R102 nie wdrożono jeszcze do VM; duża kopia
-pozostaje niedokończona, a historyczna przyczyna przekroczenia czasu nie jest
+wcześniejszych prób systemowych. Po tych kontrolach R102 wdrożono do VM;
+wynik późniejszej próby opisano powyżej. Duża kopia pozostaje niedokończona,
+a historyczna przyczyna poprzedniego przekroczenia czasu nie jest
 ustalona. Testy syntetyczne nie kwalifikują dużego transferu ani pełnej ścieżki
 GUI/nośnika/WinRE. Stable nadal nie zostało wydane.
 

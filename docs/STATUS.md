@@ -45,8 +45,15 @@ sprawdzeniu jego powiązania ze źródłem i pełnej integralności; każdy frag
 jest uwierzytelniany ponownie przed użyciem. R102 przeszedł 66 nowych kontroli
 wznowienia, 29 kontroli diagnostyki i 11 prób CLI na sztucznych danych.
 Nie kasowano wcześniejszych eksportów ani nie osłabiano porównania pobranych
-bajtów. Kandydat nie jest jeszcze wdrożony do VM; rzeczywiste wznowienie nowej
-dużej kopii nadal wymaga potwierdzenia.
+bajtów. R102 wdrożono do VM, lecz następna próba zakończyła się `TIMEOUT`
+podczas łączenia, z operacją `DownloadContent`. Przyczyna sieciowa pozostaje
+nieznana; dane i sześć niepowodzeń zachowano, VM wyłączono normalnie.
+Poprawka `46a406c` usuwa powtórne pobieranie nagłówków na etapie sprawdzania
+dostępności folderu, wykorzystując tam listę nazw. Pełna kontrola rozmiarów,
+integralności eksportu i pobranych bajtów w transferze pozostaje wymagana.
+Przeszło 28 nowych kontroli syntetycznych na dokładnych końcowych bibliotekach.
+Kandydat r111 nie został wdrożony; ukończenie i niezależne pobranie nowej
+dużej kopii nadal wymagają potwierdzenia.
 Szczegóły i granice dowodów w [VALIDATION.md](../VALIDATION.md).
 
 - Kwalifikacja całego przejścia przez interaktywny kreator Windows na zwykłym koncie; instalator EXE i odczyt planu pod tokenem zwykłego użytkownika przeszły test VM.
