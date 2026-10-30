@@ -153,14 +153,13 @@ internal sealed class JobEngine
                 if(profile.PendingCloudDate is null||profile.Content==BackupContent.Files&&profile.PendingSnapshot is null)
                     profile.PendingCloudDate=CloudFolderPlan.Day(now);
                 profile.PendingSnapshot=snapshot; store.Save();
+                string? prepared=SystemImageStorage.FindPreparedTransfer(store,profile,snapshot,token);
                 SetPhase("Łączenie z Chomikuj");
                 int previousFolders=profile.PreviousUnconfirmedCloudFolders.Count;
                 using var connection=cloudFactory();
                 var remote=await connection.ConnectAsync(profile,secrets,token); store.Save();
                 if(profile.PreviousUnconfirmedCloudFolders.Count>previousFolders)
                     SetPhase("Wysyłanie do nowego folderu; poprzedni folder zachowano");
-                string staging=SystemImageStorage.TransferDirectory(store,profile,Guid.NewGuid().ToString("N"));
-                Directory.CreateDirectory(Path.GetDirectoryName(staging)!);
                 SetPhase("Przygotowanie plików do wysłania");
                 var progress=new InlineCloudProgress(p=>
                 {
@@ -168,8 +167,15 @@ internal sealed class JobEngine
                     LocalProgress=null;Phase=p.Phase; CompletedRecords=p.Completed; TotalRecords=p.Total; Changed?.Invoke();
                 });
                 var reportedRemote=new ListingProgressVault(remote,()=>SetPhase("Sprawdzanie listy i rozmiarów plików w chmurze"));
-                await new CloudVaultTransfer(reportedRemote).UploadSnapshotAsync(profile.Repository,secrets.VaultPassword,snapshot,staging,progress,token,
-                    LocalObserver(token));
+                var transfer=new CloudVaultTransfer(reportedRemote);
+                if(prepared is not null)
+                    await transfer.UploadPreparedSnapshotAsync(profile.Repository,secrets.VaultPassword,snapshot,prepared,progress,token,LocalObserver(token));
+                else
+                {
+                    string staging=SystemImageStorage.TransferDirectory(store,profile,Guid.NewGuid().ToString("N"));
+                    Directory.CreateDirectory(Path.GetDirectoryName(staging)!);
+                    await transfer.UploadSnapshotAsync(profile.Repository,secrets.VaultPassword,snapshot,staging,progress,token,LocalObserver(token));
+                }
             }
             profile.LastSuccess=DateTimeOffset.UtcNow; profile.LastSnapshot=snapshot; profile.PendingSnapshot=null;profile.PendingCloudDate=null;
             profile.PendingSystemImage=null;

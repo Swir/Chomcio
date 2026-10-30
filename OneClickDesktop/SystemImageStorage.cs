@@ -44,4 +44,35 @@ internal static class SystemImageStorage
         string path=Path.Combine(root,"transfers",profile.Id,operationId);
         StudioStore.RejectLinks(path);return path;
     }
+    internal static string? FindPreparedTransfer(StudioStore store,BackupProfile profile,string snapshotId,CancellationToken token)
+    {
+        if(!BrokerFiles.IsId(snapshotId))throw new InvalidDataException("Niepoprawny identyfikator kopii.");
+        string parent=Path.GetDirectoryName(TransferDirectory(store,profile,Guid.NewGuid().ToString("N")))!;
+        if(!Directory.Exists(parent))return null;
+        // Only published operation directories can be adopted. Private atomic
+        // export staging directories are never candidates. Bound the discovery;
+        // do not scan or remove old backup payloads while choosing a candidate.
+        var directories=new List<string>();
+        foreach(string directory in Directory.EnumerateDirectories(parent))
+        {
+            token.ThrowIfCancellationRequested();
+            if(directories.Count>=4096)throw new IOException("Zbyt wiele katalogów wysyłania; zachowano dane.");
+            directories.Add(directory);
+        }
+        foreach(string directory in directories.OrderBy(p=>p,StringComparer.Ordinal))
+        {
+            token.ThrowIfCancellationRequested();
+            if(!BrokerFiles.IsId(Path.GetFileName(directory)))continue;
+            StudioStore.RejectLinks(directory);
+            string snapshots=Path.Combine(directory,"snapshots");StudioStore.RejectLinks(snapshots);
+            string config=Path.Combine(directory,"repo.json");StudioStore.RejectLinks(config);
+            if(!File.Exists(config)||!Directory.Exists(snapshots))
+                throw new IOException("Zachowany eksport jest niekompletny. Nie utworzono kolejnego eksportu.");
+            string manifest=Path.Combine(snapshots,snapshotId+".snap");StudioStore.RejectLinks(manifest);
+            if(File.Exists(manifest))return directory; // Core must authenticate it; no fallback on failure.
+            if(!Directory.EnumerateFiles(snapshots,"*.snap",SearchOption.TopDirectoryOnly).Any())
+                throw new IOException("Brak manifestu zachowanego eksportu. Nie utworzono kolejnego eksportu.");
+        }
+        return null;
+    }
 }

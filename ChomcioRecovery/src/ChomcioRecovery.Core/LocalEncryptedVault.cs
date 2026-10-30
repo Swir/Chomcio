@@ -11,7 +11,7 @@ namespace ChomcioRecovery.Core;
 /// Local v1 prototype. Immutable encrypted chunks and encrypted snapshots;
 /// never uploads data or changes a system partition. Not a system image tool.
 /// </summary>
-public sealed class LocalEncryptedVault : IDisposable
+public sealed partial class LocalEncryptedVault : IDisposable
 {
     public const int ChunkBytes = 4 * 1024 * 1024;
     private const int NonceBytes = 12;

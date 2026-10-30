@@ -32,24 +32,50 @@ public sealed class CloudVaultTransfer(ICloudVault remote)
             vault.ExportEncryptedSnapshot(snapshotId, newEncryptedStaging, token, preparationProgress);
         }, token);
         token.ThrowIfCancellationRequested();
-        var index = UniqueIndex(await remote.ListAsync(token));
         var files = Directory.EnumerateFiles(newEncryptedStaging, "*", SearchOption.AllDirectories)
             .OrderBy(p => Path.GetFileName(p) == "repo.json" ? 0 : p.EndsWith(".snap", StringComparison.Ordinal) ? 2 : 1)
             .ThenBy(p => p, StringComparer.Ordinal).ToArray();
+        var paths = files.ToDictionary(p => RemoteName(Path.GetRelativePath(newEncryptedStaging, p).Replace('\\', '/')),
+            p => p, StringComparer.Ordinal);
+        await UploadRecordsAsync(paths.Keys.ToArray(), name => LocalEncryptedVault.ReadBoundedFile(paths[name],
+            name == "repo.json" ? 16_384 : name.EndsWith(".snap", StringComparison.Ordinal) ? ManifestLimit : ObjectLimit, token),
+            progress, token);
+    }
+
+    /// <summary>
+    /// Resume from a preserved export without allocating another full copy.
+    /// Authenticate its lineage, selected manifest and complete contents before
+    /// network I/O, and authenticate each captured record again before use.
+    /// Existing inputs are never repaired, overwritten or deleted on failure.
+    /// </summary>
+    public async Task UploadPreparedSnapshotAsync(string repository, string password, string snapshotId,
+        string existingEncryptedExport, IProgress<CloudProgress>? progress, CancellationToken token,
+        IProgress<VaultProgress>? preparationProgress = null)
+    {
+        token.ThrowIfCancellationRequested();
+        using var source = await Task.Run(() => LocalEncryptedVault.Open(repository, password), token);
+        using var prepared = await Task.Run(() => source.OpenPreparedCloudExport(snapshotId,
+            existingEncryptedExport, token, preparationProgress), token);
+        await UploadRecordsAsync(prepared.Names, name => prepared.ReadRecord(name, token), progress, token);
+    }
+
+    private async Task UploadRecordsAsync(IReadOnlyList<string> names, Func<string, byte[]> readRecord,
+        IProgress<CloudProgress>? progress, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var index = UniqueIndex(await remote.ListAsync(token));
         int completed = 0;
         long bytes = 0;
-        foreach (string path in files)
+        foreach (string name in names)
         {
             token.ThrowIfCancellationRequested();
-            string relative = Path.GetRelativePath(newEncryptedStaging, path).Replace('\\', '/');
-            string name = RemoteName(relative);
-            int limit = name == "repo.json" ? 16_384 : name.EndsWith(".snap", StringComparison.Ordinal) ? ManifestLimit : ObjectLimit;
-            byte[] expected = LocalEncryptedVault.ReadBoundedFile(path, limit);
+            byte[] expected = await Task.Run(() => readRecord(name), token);
             try
             {
                 if (!index.TryGetValue(name, out var file))
                 {
-                    progress?.Report(new("Wysyłanie zaszyfrowanych danych", completed, files.Length, bytes));
+                    progress?.Report(new("Wysyłanie zaszyfrowanych danych", completed, names.Count, bytes));
+                    token.ThrowIfCancellationRequested();
                     using var input = new MemoryStream(expected, writable: false);
                     file = await remote.UploadAsync(name, input, expected.Length, token);
                     if (file.Name != name || file.Length != expected.Length)
@@ -58,14 +84,16 @@ public sealed class CloudVaultTransfer(ICloudVault remote)
                 }
                 if (file.Length != expected.Length)
                     throw new InvalidDataException("W chmurze istnieje inny plik o tej samej nazwie. Niczego nie nadpisano.");
-                progress?.Report(new("Sprawdzanie danych pobranych z Chomikuj", completed, files.Length, bytes));
+                progress?.Report(new("Sprawdzanie danych pobranych z Chomikuj", completed, names.Count, bytes));
+                token.ThrowIfCancellationRequested();
                 using var readback = new MemoryStream();
                 await remote.DownloadAsync(file, readback, expected.Length, token);
+                token.ThrowIfCancellationRequested();
                 if (!readback.ToArray().AsSpan().SequenceEqual(expected))
                     throw new InvalidDataException("Dane pobrane z chmury różnią się od wysłanych. Kopia nie jest potwierdzona.");
                 bytes = checked(bytes + expected.Length);
                 completed++;
-                progress?.Report(new("Sprawdzono", completed, files.Length, bytes));
+                progress?.Report(new("Sprawdzono", completed, names.Count, bytes));
             }
             finally { CryptographicOperations.ZeroMemory(expected); }
         }
