@@ -38,7 +38,7 @@ public sealed partial class ChomikujClient
                 ["accountname"] = accountName, ["folderid"] = folder.Id,
                 ["__RequestVerificationToken"] = webVerificationToken
             });
-            using var response = await SendTransferAsync(request, "Adres wysyłania ze strony", deadline.Token);
+            using var response = await SendTransferAsync(request, "Adres wysyłania ze strony", deadline.Token,HttpOperation.UploadAddress);
             if (!response.IsSuccessStatusCode) throw SafeHttpError(response,HttpOperation.UploadAddress);
             using var json = await ReadWebJsonAsync(response, deadline.Token);
             if (!json.RootElement.TryGetProperty("Url", out var value) || value.ValueKind != JsonValueKind.String ||
@@ -57,7 +57,7 @@ public sealed partial class ChomikujClient
         upload.Headers.Referrer = new Uri("https://chomikuj.pl/");
         // Do not retry an ambiguous send or treat its folder as new and empty.
         freshEmptyFolders.Remove(folder.Id);
-        using var uploaded = await SendTransferAsync(upload, "Wysyłanie", ct);
+        using var uploaded = await SendTransferAsync(upload, "Wysyłanie", ct,HttpOperation.UploadContent);
         if (!uploaded.IsSuccessStatusCode) throw SafeHttpError(uploaded,HttpOperation.UploadContent);
         using var result = await ReadWebJsonAsync(uploaded, ct);
         if (!result.RootElement.TryGetProperty("files", out var files) || files.ValueKind != JsonValueKind.Array || files.GetArrayLength() != 1)
@@ -91,7 +91,7 @@ public sealed partial class ChomikujClient
             if (uri.IdnHost is not ("chomikuj.pl" or "www.chomikuj.pl"))
                 throw new IOException("Odmowa przekazania sesji strony poza domenę logowania Chomikuj.");
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            using var response = await SendTransferAsync(request, "Sesja strony", deadline.Token);
+            using var response = await SendTransferAsync(request, "Sesja strony", deadline.Token,HttpOperation.WebSession);
             if ((int)response.StatusCode is >= 300 and < 400 && response.Headers.Location is { } location)
             {
                 uri = SecureDownloadUri(location.IsAbsoluteUri ? location : new Uri(uri, location));

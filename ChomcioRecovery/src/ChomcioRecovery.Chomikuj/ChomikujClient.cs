@@ -269,7 +269,7 @@ public sealed partial class ChomikujClient : IDisposable
         {
             RequireServiceUri(uri);
             using var request = new HttpRequestMessage(method, uri);
-            var response = await SendTransferAsync(request, method == HttpMethod.Head ? "Rozmiar pliku" : "Pobieranie", deadline.Token);
+            var response = await SendTransferAsync(request, method == HttpMethod.Head ? "Rozmiar pliku" : "Pobieranie", deadline.Token,HttpOperation.DownloadContent);
             if ((int)response.StatusCode is >= 300 and < 400 && response.Headers.Location is { } location)
             {
                 response.Dispose();
@@ -299,7 +299,7 @@ public sealed partial class ChomikujClient : IDisposable
                 E("agreementInfo", E("AgreementInfo", E("name", "own"))))));
     }
 
-    private async Task<HttpResponseMessage> SendTransferAsync(HttpRequestMessage request, string operation, CancellationToken ct)
+    private async Task<HttpResponseMessage> SendTransferAsync(HttpRequestMessage request, string operation, CancellationToken ct,HttpOperation transportOperation)
     {
         var uri = request.RequestUri!;
         RequireServiceUri(uri);
@@ -314,7 +314,7 @@ public sealed partial class ChomikujClient : IDisposable
             for (Exception? inner = error.InnerException; inner is not null; inner = inner.InnerException)
                 if (inner is SocketException socket) { reason += "/" + socket.SocketErrorCode; break; }
             throw new CloudTransportException(operation + " HTTPS: " + endpoint + " — " + reason +
-                ". Operacja nie została potwierdzona.", error.HttpRequestError,error);
+                ". Operacja nie została potwierdzona.", error.HttpRequestError,error,transportOperation);
         }
     }
 
@@ -350,7 +350,7 @@ public sealed partial class ChomikujClient : IDisposable
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw new OperationCanceledException(ct); }
         catch (OperationCanceledException) { throw new CloudReadTimeoutException(); }
-        catch (HttpRequestException error) { throw new CloudTransportException("Nie udało się połączyć z Chomikuj przez HTTPS.", error.HttpRequestError,error); }
+        catch (HttpRequestException error) { throw new CloudTransportException("Nie udało się połączyć z Chomikuj przez HTTPS.", error.HttpRequestError,error,HttpOperation.SoapRequest); }
     }
 
     private static async Task<XElement> ReadXmlAsync(HttpResponseMessage response, CancellationToken ct)

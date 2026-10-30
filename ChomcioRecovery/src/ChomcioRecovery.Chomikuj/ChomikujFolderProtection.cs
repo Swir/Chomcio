@@ -67,7 +67,7 @@ public sealed partial class ChomikujClient
         var fields=new Dictionary<string,string>{{"ChomikName",accountName},{"FolderId",folder.Id},{"__RequestVerificationToken",webVerificationToken}};
         if(password is not null)fields.Add("Password",password);
         request.Content=new FormUrlEncodedContent(fields);
-        using var response=await SendTransferAsync(request,"Ochrona folderu",ct);
+        using var response=await SendTransferAsync(request,"Ochrona folderu",ct,HttpOperation.FolderProtection);
         if(!response.IsSuccessStatusCode)throw SafeHttpError(response,HttpOperation.FolderProtection);
         return await ReadWebJsonAsync(response,ct);
     }

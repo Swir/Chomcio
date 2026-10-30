@@ -63,6 +63,10 @@ internal sealed class RunRecord
     public int? HttpStatus { get; set; }
     public double? RetryAfterSeconds { get; set; }
     public string? HttpOperation { get; set; }
+    public string? TransportError { get; set; }
+    public int? NativeErrorCode { get; set; }
+    public int? CauseHResult { get; set; }
+    public string? CauseKind { get; set; }
     public string? Snapshot { get; set; }
     public BackupContent Content { get; set; }
     public string? ImageCaptureId { get; set; }

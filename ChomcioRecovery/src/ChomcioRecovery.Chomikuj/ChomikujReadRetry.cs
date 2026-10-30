@@ -80,13 +80,16 @@ public sealed partial class ChomikujClient
     private sealed class CloudTransportException : IOException
     {
         public HttpRequestError HttpRequestError { get; }
+        public HttpOperation Operation { get; }
         public int? NativeErrorCode { get; }
         public int? CauseHResult { get; }
         public string? CauseKind { get; }
         internal CloudTransportException(string message,HttpRequestError error):this(message,error,null){}
-        internal CloudTransportException(string message,HttpRequestError error,Exception? cause):base(message)
+        internal CloudTransportException(string message,HttpRequestError error,Exception? cause):this(message,error,cause,HttpOperation.Unknown){}
+        internal CloudTransportException(string message,HttpRequestError error,Exception? cause,HttpOperation operation):base(message)
         {
-            HttpRequestError=error;
+            HttpRequestError=Enum.IsDefined(error)?error:HttpRequestError.Unknown;
+            Operation=Enum.IsDefined(operation)?operation:HttpOperation.Unknown;
             // Keep only bounded numeric diagnostics and fixed categories. Never
             // retain the raw exception, its message, data, URL or stack text.
             for(int depth=0;cause is not null&&depth<8;depth++,cause=cause.InnerException)
@@ -105,6 +108,15 @@ public sealed partial class ChomikujClient
             }
         }
     }
+
+    // Project only fixed categories and numeric codes. The original exception,
+    // authority, message and stack must not enter persisted application history.
+    public sealed record TransportFailure(HttpRequestError Error,HttpOperation Operation,
+        int? NativeErrorCode,int? CauseHResult,string? CauseKind);
+    public static TransportFailure? GetTransportFailure(Exception error)
+        =>error is CloudTransportException transport
+            ?new(transport.HttpRequestError,transport.Operation,transport.NativeErrorCode,transport.CauseHResult,transport.CauseKind)
+            :null;
 
     // Expose numeric metadata and a closed operation category, never body or URL.
     public enum HttpOperation { Unknown, SoapRequest, WebSession, UploadAddress, UploadContent, DownloadContent, FolderProtection }

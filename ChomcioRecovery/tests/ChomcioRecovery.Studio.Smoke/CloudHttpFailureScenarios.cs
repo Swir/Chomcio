@@ -55,13 +55,36 @@ internal static class CloudHttpFailureScenarios
         }
         check(new ChomikujClient.CloudHttpException(HttpStatusCode.InternalServerError,null).Operation==ChomikujClient.HttpOperation.Unknown,"legacy exception constructor remains compatible");
         check(new ChomikujClient.CloudHttpException(HttpStatusCode.InternalServerError,null,(ChomikujClient.HttpOperation)999).Operation==ChomikujClient.HttpOperation.Unknown,"undefined operation is not reported as a known boundary");
+        foreach(var operation in new[]{ChomikujClient.HttpOperation.SoapRequest,ChomikujClient.HttpOperation.WebSession,ChomikujClient.HttpOperation.UploadAddress,ChomikujClient.HttpOperation.UploadContent})
+        {
+            using var handler=new UploadErrorResponse(operation,transport:true);
+            using var client=new ChomikujClient(handler);
+            Exception? error=null;
+            try
+            {
+                await client.LoginAsync("synthetic-user","synthetic-password",default);
+                using var content=new MemoryStream(new byte[]{1,2,3});
+                await client.OpenFolder(new("7","Synthetic")).UploadAsync("repo.json",content,3,default);
+            }
+            catch(IOException e){error=e;}
+            var metadata=error is null?null:ChomikujClient.GetTransportFailure(error);
+            check(metadata is {Error:HttpRequestError.Unknown,NativeErrorCode:123,CauseKind:"Windows"}&&metadata.Operation==operation&&metadata.CauseHResult==new System.ComponentModel.Win32Exception(123).HResult,"transport preserves the actual boundary and bounded native cause");
+            check(handler.FailureCalls==1&&handler.UploadCalls==(operation==ChomikujClient.HttpOperation.UploadContent?1:0),"unknown transport failures do not replay requests or enter subsequent writes");
+            var run=await new JobEngine(store,()=>new FailedConnection(error!)).RunAsync(profile,secrets,DateTimeOffset.UtcNow);
+            check(run is {State:RunState.Failed,HttpStatus:null,RetryAfterSeconds:null,TransportError:"Unknown",NativeErrorCode:123,CauseKind:"Windows"}&&run.HttpOperation==operation.ToString(),"transport failure history has native metadata without an invented HTTP response");
+            var saved=new StudioStore(store.Root).Data.History.Last();
+            check(saved.TransportError=="Unknown"&&saved.NativeErrorCode==123&&saved.CauseHResult==metadata!.CauseHResult&&saved.CauseKind=="Windows"&&saved.HttpOperation==operation.ToString(),"transport diagnostics survive persistence");
+            check(saved.Snapshot==pending&&profile.PendingSnapshot==pending&&profile.LastSuccess is null,"transport failures retain the original pending snapshot");
+            string encoded=JsonSerializer.Serialize(saved);
+            check(!encoded.Contains("private-response-secret")&&!encoded.Contains("chomikuj.pl")&&!error!.ToString().Contains("private-response-secret"),"history retains no exception text, endpoint, token or inner exception");
+        }
         using(var vault=LocalEncryptedVault.Open(profile.Repository,secrets.VaultPassword))
             check(vault.ListSnapshotIds().Count==1,"diagnostic runs never create another snapshot");
-        check(JsonSerializer.Deserialize<RunRecord>("{\"FailureCode\":\"FAILED-CloudHttpException\"}") is {HttpStatus:null,RetryAfterSeconds:null,HttpOperation:null},"old history stays readable without invented HTTP data");
+        check(JsonSerializer.Deserialize<RunRecord>("{\"FailureCode\":\"FAILED-CloudHttpException\"}") is {HttpStatus:null,RetryAfterSeconds:null,HttpOperation:null,TransportError:null,NativeErrorCode:null,CauseHResult:null,CauseKind:null},"old history stays readable without invented HTTP or transport data");
         var unknown=new JobEngine(store,()=>new FailedConnection(new IOException("https://example.invalid/?token=private-response-secret")));
         var unknownRun=await unknown.RunAsync(profile,secrets,DateTimeOffset.UtcNow);
-        check(unknownRun is {HttpStatus:null,RetryAfterSeconds:null,HttpOperation:null}&&!unknownRun.Detail.Contains("private-response-secret"),"unknown errors remain unclassified and sanitized");
-        check(store.Data.History.Count==7&&store.Data.History.All(r=>r.State==RunState.Failed),"prior failed attempts retained independently");
+        check(unknownRun is {HttpStatus:null,RetryAfterSeconds:null,HttpOperation:null,TransportError:null,NativeErrorCode:null,CauseHResult:null,CauseKind:null}&&!unknownRun.Detail.Contains("private-response-secret"),"unknown errors remain unclassified and sanitized");
+        check(store.Data.History.Count==11&&store.Data.History.All(r=>r.State==RunState.Failed),"prior failed attempts retained independently");
     }
     private sealed class FailedConnection(Exception error):IJobCloud
     {
@@ -78,9 +101,9 @@ internal static class CloudHttpFailureScenarios
             return Task.FromResult(response);
         }
     }
-    private sealed class UploadErrorResponse(ChomikujClient.HttpOperation failure):HttpMessageHandler
+    private sealed class UploadErrorResponse(ChomikujClient.HttpOperation failure,bool transport=false):HttpMessageHandler
     {
-        internal int SessionCalls,AddressCalls,UploadCalls;
+        internal int SessionCalls,AddressCalls,UploadCalls,FailureCalls;
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken token)
         {
             var uri=request.RequestUri!;
@@ -92,6 +115,7 @@ internal static class CloudHttpFailureScenarios
             {UploadCalls++;return Reply(ChomikujClient.HttpOperation.UploadContent,"unexpected-success");}
             string xml=await request.Content!.ReadAsStringAsync(token);
             string action=XDocument.Parse(xml).Root!.Elements().Single().Elements().Single().Name.LocalName;
+            if(action=="Auth"&&failure==ChomikujClient.HttpOperation.SoapRequest&&transport)ThrowTransport();
             string payload=action switch
             {
                 "Auth"=>"<token>synthetic-token</token><hamsterId>123</hamsterId><hamsterName>synthetic-user</hamsterName>",
@@ -101,7 +125,16 @@ internal static class CloudHttpFailureScenarios
             return new(HttpStatusCode.OK){Content=new StringContent($"<Envelope><Body><{action}Response><{action}Result><status>Ok</status>{payload}</{action}Result></{action}Response></Body></Envelope>")};
         }
         private HttpResponseMessage Reply(ChomikujClient.HttpOperation operation,string body)
-            =>new(operation==failure?HttpStatusCode.InternalServerError:HttpStatusCode.OK)
+        {
+            if(operation==failure&&transport)ThrowTransport();
+            return new(operation==failure?HttpStatusCode.InternalServerError:HttpStatusCode.OK)
                 {Content=new StringContent(operation==failure?"private-response-secret":body)};
+        }
+        private void ThrowTransport()
+        {
+            FailureCalls++;
+            throw new HttpRequestException(HttpRequestError.Unknown,"https://example.invalid/?token=private-response-secret",
+                new System.ComponentModel.Win32Exception(123,"private-response-secret"));
+        }
     }
 }

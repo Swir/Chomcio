@@ -193,6 +193,14 @@ internal sealed class JobEngine
                 record.RetryAfterSeconds=http.RetryAfter?.TotalSeconds;
                 record.HttpOperation=http.Operation==ChomikujClient.HttpOperation.Unknown?null:http.Operation.ToString();
             }
+            if(ChomikujClient.GetTransportFailure(error) is {} transport)
+            {
+                record.TransportError=transport.Error.ToString();
+                record.HttpOperation=transport.Operation==ChomikujClient.HttpOperation.Unknown?null:transport.Operation.ToString();
+                record.NativeErrorCode=transport.NativeErrorCode;
+                record.CauseHResult=transport.CauseHResult;
+                record.CauseKind=transport.CauseKind;
+            }
             record.Detail=SafeError(error)+" Etap: "+record.FailureStage+" ["+record.FailureCode+"].";
         }
         finally
@@ -316,6 +324,8 @@ internal sealed class JobEngine
         ChomikujClient.CloudHttpException e=>"Chomikuj: błąd HTTP "+(int)e.StatusCode+". Kopia pozostaje do wznowienia."+
             (e.RetryAfter is {TotalSeconds:>0} delay?" Serwer zaleca odczekać co najmniej "+Math.Ceiling(delay.TotalSeconds)+" s.":""),
         ChomikujReadException e=>e.Message,
+        IOException e when ChomikujClient.GetTransportFailure(e) is not null=>
+            "Przerwano połączenie z Chomikuj. Nie potwierdzono operacji; kopia pozostaje do wznowienia.",
         ChomikujFolderProtectionException e=>e.Message,
         OperationCanceledException=>"Serwer nie odpowiedział w wyznaczonym czasie. Ponów zadanie.",
         IOException {InnerException:System.ComponentModel.Win32Exception native}=>
