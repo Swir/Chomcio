@@ -46,7 +46,11 @@ internal sealed class AccountJobCloud : IJobCloud
         var remote=client.OpenFolder(folder);
         if(CloudFolderPlan.CanReplaceUnconfirmed(profile))
         {
-            try{await remote.ListAsync(token);}
+            // This preflight only distinguishes an accessible folder from the
+            // service's explicit unavailable response. Resolving every HTTP
+            // length here duplicates the transfer's authenticated verification.
+            // Name discovery proves neither completeness nor byte integrity.
+            try{await remote.ListNamesAsync(token);}
             catch(ChomikujServiceException error) when(error.Failure==ChomikujFailure.RequestedFilesUnavailable)
             {
                 // This folder has NEVER held a confirmed point in this profile.
