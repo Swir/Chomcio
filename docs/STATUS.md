@@ -43,6 +43,11 @@ Poniższe obszary opisują stan funkcji; nie są punktami przyjętego modelu pro
   gotowy, a przerwany transfer zachowany. Sama obecność części fragmentów
   w chmurze nie potwierdza kompletności ani integralności całej kopii.
 
+Próba naturalnego wznowienia 30 października zatrzymała się na braku poprawnego
+adresu wysyłania. Krótka próba nowej sesji otrzymała adres, lecz nie wysyłała
+pliku i nie wyjaśnia historycznej odmowy. Obraz i częściowa kopia są zachowane;
+szczegóły oraz ograniczenia dowodów opisano w [VALIDATION.md](../VALIDATION.md).
+
 Oznaczenie Stable wymaga ukończenia i udokumentowania tych przepływów.
 Testy systemowe prowadzi się wyłącznie w izolowanych maszynach na ich własnych
 dyskach. Aktualizacja README nie zmienia stanu wykonania powyższych prac.

@@ -1,5 +1,24 @@
 # Sprawdzenie wydania 1.0.0
 
+## Naturalne wznowienie dużej kopii — 30 października 2026
+
+Zadanie gotowego EXE r64 przed logowaniem podjęło zachowany punkt kopii w nowym
+dniu, bez ręcznej zmiany daty i bez ponownego tworzenia obrazu Windows.
+Transfer zakończył się niepowodzeniem. Zapisana bezpieczna kategoria wskazuje
+brak poprawnego adresu wysyłania (WebUploadUrl); dokładna odpowiedź i przyczyna
+tej odmowy nie zostały zachowane. Nie oznacza to potwierdzonej awarii dysku ani
+ustalonego problemu z czasem życia sesji.
+
+Osobna, krótka diagnostyka z nową sesją otrzymała adres HTTPS przy HTTP 200.
+Zablokowano wysyłanie zawartości i nie utworzono pliku. Odczyt folderu nadal
+wykazał 2382 fragmenty i konfigurację bez końcowego manifestu. To nie jest
+dowód pełnego wysłania ani niezależnej integralności kopii. Obraz, klucze,
+częściowy transfer i cztery wpisy niepowodzeń zostały zachowane.
+
+Po sprawdzeniu braku zapisów odłączono wyłącznie testowy adapter i normalnie
+wyłączono VM. Wcześniejsze zaliczone próby pozostają ważne w swoim zakresie;
+nowa duża kopia oraz pełna ścieżka użytkownika nadal blokują Stable.
+
 ## Lokalny harmonogram pozostawiony przez restart — 30 października 2026
 
 Gotowy EXE kandydata r64, kod `ca16b7b`, wykonał automatyczną kopię jednego
