@@ -23,6 +23,14 @@ adres, niejednoznaczne wysłanie oraz anulowanie. HTTPS i ochrona folderu
 pozostają wymagane. To lokalny test mechanizmu, nie dowód przyczyny wcześniejszej
 awarii ani rzeczywistego ukończenia dużego uploadu po poprawce.
 
+Na dokładnej kombinacji bibliotek kandydata r90 ponownie przeszły te
+33 kontrole oraz 66 krótkich kontroli historii błędów i granic ponawiania.
+Nie powtarzano pełnych zestawów Cloud150/Studio14. ZIP r90 ma 676 sprawdzonych
+plików: zmieniły się tylko DLL/PDB adaptera Chomikuj, pozostałe 674 pliki,
+w tym główna aplikacja, Core i moduł obrazu, są identyczne z r64.
+Kod adaptera: e5e3f31. Tej paczki nie wdrożono jeszcze do testowej VM;
+rzeczywisty transfer zachowanej dużej kopii po poprawce nadal wymaga kwalifikacji.
+
 ## Naturalne wznowienie dużej kopii — 30 października 2026
 
 Zadanie gotowego EXE r64 przed logowaniem podjęło zachowany punkt kopii w nowym
