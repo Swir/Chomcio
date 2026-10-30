@@ -38,8 +38,15 @@ pozostają nieznane. Poprawiono wskazywanie fazy odczytu listy i bezpieczne
 zapisywanie kategorii przerwanego żądania; 29 nowych krótkich kontroli oraz
 66 kontroli historii błędów przeszło na runtime kandydata r99. Nie jest to
 zaliczenie dużego transferu. Obraz, niedokończona kopia i historia są zachowane,
-a VM normalnie wyłączona. Przed kolejną próbą trzeba również rozwiązać brak
-miejsca na następny pełny eksport, zachowując istniejące dane.
+a VM normalnie wyłączona. Odczyt metadanych potwierdził pięć zachowanych
+eksportów zajmujących łącznie około 76,85 GB według logicznych rozmiarów plików.
+Poprawka `c69f062` pozwala bezpiecznie wznowić z istniejącego eksportu po
+sprawdzeniu jego powiązania ze źródłem i pełnej integralności; każdy fragment
+jest uwierzytelniany ponownie przed użyciem. R102 przeszedł 66 nowych kontroli
+wznowienia, 29 kontroli diagnostyki i 11 prób CLI na sztucznych danych.
+Nie kasowano wcześniejszych eksportów ani nie osłabiano porównania pobranych
+bajtów. Kandydat nie jest jeszcze wdrożony do VM; rzeczywiste wznowienie nowej
+dużej kopii nadal wymaga potwierdzenia.
 Szczegóły i granice dowodów w [VALIDATION.md](../VALIDATION.md).
 
 - Kwalifikacja całego przejścia przez interaktywny kreator Windows na zwykłym koncie; instalator EXE i odczyt planu pod tokenem zwykłego użytkownika przeszły test VM.

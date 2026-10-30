@@ -1,5 +1,42 @@
 # Sprawdzenie wydania 1.0.0
 
+## Wznowienie z zachowanego eksportu — 30 października 2026
+
+Ograniczony odczyt metadanych dysku testowego potwierdził pięć zachowanych
+eksportów tego samego punktu: łącznie około 76,85 GB logicznych rozmiarów
+plików. Wolne miejsce wynosiło około 11,34 GB. Nie usuwano danych, nie
+czytano treści dużej kopii i nie wykonywano następnego eksportu. Same nazwy
+i rozmiary nie potwierdzają integralności tych pięciu katalogów.
+
+Poprawka `c69f062` pozwala zadaniu użyć istniejącego opublikowanego eksportu.
+Nowa ścieżka Core wiąże jego konfigurację z kluczem źródłowego sejfu oraz
+porównuje dokładny zaszyfrowany manifest wybranego punktu. Przed odczytem
+listy w chmurze weryfikuje pełną zawartość źródła i eksportu. Każdy fragment
+jest ponownie uwierzytelniany z dokładnie tego bufora, który trafi do transportu.
+Przekierowane ścieżki są odrzucane; katalogi na Windows pozostają przypięte
+na czas operacji. Nie wysyła się dodatkowych, niepowiązanych rekordów.
+Porównanie pobranych bajtów i publikacja manifestu na końcu są zachowane.
+Uszkodzony wybrany eksport zatrzymuje zadanie bez tworzenia zastępczego
+eksportu ani kasowania plików. Dotychczasowe API nowego eksportu nadal
+odmawia użycia istniejącego katalogu docelowego.
+
+Na dokładnej kombinacji bibliotek kandydata r102 przeszło 66 nowych kontroli:
+wznowienie po ponownym otwarciu ustawień, zachowanie historii i daty punktu,
+brak kolejnego eksportu, niezależne pobranie i odtworzenie, obcy sejf, uszkodzone
+lub brakujące rekordy, zmiana po weryfikacji i po pobraniu do bufora, dodatkowe
+rekordy, odmowa dowiązań i podmiany katalogu, anulowanie oraz zły odczyt z chmury.
+Przeszło też 29 kontroli faz i diagnostyki przerwania oraz 11 prób gotowego CLI
+z nową biblioteką Core. Użyto sztucznych danych na D: i transportu w pamięci,
+bez rzeczywistego konta chmurowego i bez uruchamiania VM.
+
+R102 zmienia aplikację i Core (także kopię Core używaną przez CLI).
+Adapter chmurowy, moduł obrazowania, kryptografia, limity czasu i zasady
+ponawiania żądań pozostały bez zmian. Nie powtarzano Cloud150/Studio14 ani
+wcześniejszych prób systemowych. R102 nie wdrożono jeszcze do VM; duża kopia
+pozostaje niedokończona, a historyczna przyczyna przekroczenia czasu nie jest
+ustalona. Testy syntetyczne nie kwalifikują dużego transferu ani pełnej ścieżki
+GUI/nośnika/WinRE. Stable nadal nie zostało wydane.
+
 ## Faza odczytu listy i diagnostyka przekroczenia czasu — 30 października 2026
 
 Kandydat r90 został wdrożony w testowej VM. Harmonogram przed logowaniem
