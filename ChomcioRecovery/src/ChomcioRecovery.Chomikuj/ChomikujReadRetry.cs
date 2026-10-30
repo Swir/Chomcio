@@ -75,6 +75,18 @@ public sealed partial class ChomikujClient
 
     private sealed class CloudReadTimeoutException() : IOException("Chomikuj nie odpowiedział w wyznaczonym czasie.");
 
+    private sealed class CloudTransferCanceledException : OperationCanceledException
+    {
+        internal HttpOperation Operation { get; }
+        internal int CauseHResult { get; }
+        internal CloudTransferCanceledException(OperationCanceledException cause,HttpOperation operation)
+            :base("Przerwano oczekiwanie na odpowiedź Chomikuj.",cause.CancellationToken)
+        {
+            Operation=Enum.IsDefined(operation)?operation:HttpOperation.Unknown;
+            CauseHResult=cause.HResult;
+        }
+    }
+
     // Preserve classification without retaining a raw inner exception that
     // could expose a signed URL through Exception.ToString().
     private sealed class CloudTransportException : IOException
@@ -114,9 +126,14 @@ public sealed partial class ChomikujClient
     public sealed record TransportFailure(HttpRequestError Error,HttpOperation Operation,
         int? NativeErrorCode,int? CauseHResult,string? CauseKind);
     public static TransportFailure? GetTransportFailure(Exception error)
-        =>error is CloudTransportException transport
-            ?new(transport.HttpRequestError,transport.Operation,transport.NativeErrorCode,transport.CauseHResult,transport.CauseKind)
-            :null;
+        =>error switch
+        {
+            CloudTransportException transport=>new(transport.HttpRequestError,transport.Operation,
+                transport.NativeErrorCode,transport.CauseHResult,transport.CauseKind),
+            CloudTransferCanceledException cancelled=>new(HttpRequestError.Unknown,cancelled.Operation,
+                null,cancelled.CauseHResult,"Cancellation"),
+            _=>null
+        };
 
     // Expose numeric metadata and a closed operation category, never body or URL.
     public enum HttpOperation { Unknown, SoapRequest, WebSession, UploadAddress, UploadContent, DownloadContent, FolderProtection }

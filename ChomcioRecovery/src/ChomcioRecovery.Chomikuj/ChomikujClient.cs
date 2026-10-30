@@ -308,6 +308,12 @@ public sealed partial class ChomikujClient : IDisposable
         string endpoint = uri.GetLeftPart(UriPartial.Authority);
         Diagnostics?.Report(operation + " HTTPS: " + endpoint);
         try { return await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct); }
+        catch (OperationCanceledException error)
+        {
+            // Retain cancellation semantics and the request boundary, without
+            // retaining an exception that may contain a signed URL.
+            throw new CloudTransferCanceledException(error,transportOperation);
+        }
         catch (HttpRequestException error)
         {
             string reason = error.HttpRequestError.ToString();

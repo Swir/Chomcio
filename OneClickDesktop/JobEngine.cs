@@ -162,12 +162,13 @@ internal sealed class JobEngine
                 string staging=SystemImageStorage.TransferDirectory(store,profile,Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(Path.GetDirectoryName(staging)!);
                 SetPhase("Przygotowanie plików do wysłania");
-                var progress=new Progress<CloudProgress>(p=>
+                var progress=new InlineCloudProgress(p=>
                 {
                     if(!ReferenceEquals(active,cancellation)) return;
                     LocalProgress=null;Phase=p.Phase; CompletedRecords=p.Completed; TotalRecords=p.Total; Changed?.Invoke();
                 });
-                await new CloudVaultTransfer(remote).UploadSnapshotAsync(profile.Repository,secrets.VaultPassword,snapshot,staging,progress,token,
+                var reportedRemote=new ListingProgressVault(remote,()=>SetPhase("Sprawdzanie listy i rozmiarów plików w chmurze"));
+                await new CloudVaultTransfer(reportedRemote).UploadSnapshotAsync(profile.Repository,secrets.VaultPassword,snapshot,staging,progress,token,
                     LocalObserver(token));
             }
             profile.LastSuccess=DateTimeOffset.UtcNow; profile.LastSnapshot=snapshot; profile.PendingSnapshot=null;profile.PendingCloudDate=null;
@@ -296,6 +297,20 @@ internal sealed class JobEngine
     });
     private sealed class InlineVaultProgress(Action<VaultProgress> report):IProgress<VaultProgress>
     {public void Report(VaultProgress value)=>report(value);}
+    // FailureStage must be set before a synchronous/fast remote failure, not
+    // later by a queued progress callback. UI listeners already marshal updates.
+    private sealed class InlineCloudProgress(Action<CloudProgress> report):IProgress<CloudProgress>
+    {public void Report(CloudProgress value)=>report(value);}
+    private sealed class ListingProgressVault(ICloudVault inner,Action report):ICloudVault
+    {
+        public Task<IReadOnlyList<CloudObject>> ListAsync(CancellationToken token)
+        {report();return inner.ListAsync(token);}
+        public Task<IReadOnlyList<string>> ListNamesAsync(CancellationToken token)=>inner.ListNamesAsync(token);
+        public Task<CloudObject> UploadAsync(string name,Stream input,long length,CancellationToken token)
+            =>inner.UploadAsync(name,input,length,token);
+        public Task DownloadAsync(CloudObject file,Stream output,long maximumBytes,CancellationToken token)
+            =>inner.DownloadAsync(file,output,maximumBytes,token);
+    }
     private void SetPhase(string phase){ LocalProgress=null;CompletedRecords=TotalRecords=0;Phase=phase; Changed?.Invoke(); }
     internal static string FailureId(Exception error)=>error switch
     {
