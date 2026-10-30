@@ -24,6 +24,11 @@ Poniższe obszary opisują stan funkcji; nie są punktami przyjętego modelu pro
   uruchomił się z odłączoną kopią i ISO; pliki, syntetyczne programy i ustawienia
   zgadzały się. VM wyłączono normalnie. Ta próba używała prywatnego WinRE
   i sterowania laboratoryjnego; nie zastępuje kwalifikacji przewodnika użytkownika.
+- 30 października: gotowy EXE kandydata r64 wykonał lokalną kopię przed
+  logowaniem po rzeczywistym restarcie z pozostawionym włączonym zadaniem.
+  Jeden plik / 50 bajtów, historia sukcesu, kod zadania 0 i weryfikacja
+  zaszyfrowanej kopii na zwykłym koncie przeszły. Nie powtarzano obrazu Windows;
+  ustawienia i dane dużej kopii pozostały zachowane. Szczegóły w [VALIDATION.md](../VALIDATION.md).
 
 ## Co pozostaje do ukończenia
 
@@ -34,6 +39,9 @@ Poniższe obszary opisują stan funkcji; nie są punktami przyjętego modelu pro
 - Rzeczywista kopia do chmury po wylogowaniu i restarcie. Nowe zadanie
   Harmonogramu wykonało lokalne kopie przed logowaniem i po restarcie, ale
   ta VM nie miała dostępu do sieci; nie łączyć zakresów dwóch osobnych prób.
+- Ukończenie i niezależne pobranie nowej kopii systemowej: obraz Windows jest
+  gotowy, a przerwany transfer zachowany. Sama obecność części fragmentów
+  w chmurze nie potwierdza kompletności ani integralności całej kopii.
 
 Oznaczenie Stable wymaga ukończenia i udokumentowania tych przepływów.
 Testy systemowe prowadzi się wyłącznie w izolowanych maszynach na ich własnych

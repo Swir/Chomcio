@@ -1,5 +1,32 @@
 # Sprawdzenie wydania 1.0.0
 
+## Lokalny harmonogram pozostawiony przez restart — 30 października 2026
+
+Gotowy EXE kandydata r64, kod `ca16b7b`, wykonał automatyczną kopię jednego
+sztucznego pliku (50 bajtów) na zwykłym koncie Windows, bez logowania użytkownika.
+Zadanie zarejestrowano produkcyjnym mechanizmem i pozostawiono włączone przez
+normalne wyłączenie i ponowne uruchomienie VM. Nie uruchamiano EXE ręcznie.
+
+| Kontrola | Wynik |
+| --- | --- |
+| Nowy start Windows i brak zalogowanego użytkownika | PASS |
+| Jeden wpis sukcesu w historii, kod zadania 0, jeden plik / 50 bajtów | PASS |
+| Aktualizacja zapisanego identyfikatora uruchomienia Windows | PASS |
+| Weryfikacja zaszyfrowanej kopii na zwykłym koncie, w sesji 0 | PASS |
+| Zachowanie ustawień i ukończonego obrazu wcześniejszej kopii systemowej | PASS |
+| Normalne wyłączenie VM po weryfikacji | PASS |
+
+Próba używała dokładnego runtime kandydata: 227 plików głównego programu
+zweryfikowano przy przygotowaniu; moduł obrazowania pozostał niezmieniony.
+Sieć była odłączona. Pomocnik testowy przygotował osobny profil i sprawdził
+wynik; właściwą kopię wykonało zadanie dostarczonego EXE. Nie był to test
+interaktywnego ustawiania profilu przez GUI.
+
+Osobna duża kopia Windows nadal ma zachowany ukończony obraz i częściowy
+transfer, lecz nie ma potwierdzonego końcowego manifestu w chmurze.
+Powyższy wynik nie potwierdza jej ukończenia ani pełnej ścieżki USB/WinRE.
+Publiczne wydanie pozostaje Preview.
+
 ## Obraz r10 z Chomikuj i uruchomienie Windows — 27 października 2026
 
 Niezależne pobranie drugiego obrazu testowego Windows zakończyło się powodzeniem.

@@ -1,6 +1,6 @@
 # Automatyczne kopie przy zamkniętym programie
 
-Funkcja znajduje się w kandydacie r8; publiczny ZIP v1.0.0 Preview jej nie zawiera.
+Funkcja znajduje się w kandydacie r64; publiczny ZIP v1.0.0 Preview jej nie zawiera.
 
 1. Rozpakuj cały program do stałego folderu na lokalnym dysku.
 2. W ustawieniach swojej kopii zaznacz kopię codzienną lub po uruchomieniu
@@ -30,4 +30,6 @@ w lokalizacji wskazanej podczas włączania zadania.
 kopie, profile i klucze. Trwającą kopię najpierw bezpiecznie zatrzymaj.
 
 Potwierdzone testy i ograniczenia opisuje [VALIDATION.md](../VALIDATION.md).
+30 października sprawdzono lokalną kopię gotowego EXE przed logowaniem,
+z zadaniem pozostawionym włączonym przez rzeczywisty restart VM.
 Kopia plików w tle nie jest kwalifikacją pełnego odzyskiwania Windows.
