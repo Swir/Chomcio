@@ -32,11 +32,15 @@ Poniższe obszary opisują stan funkcji; nie są punktami przyjętego modelu pro
 
 ## Co pozostaje do ukończenia
 
-Aktualizacja 30 października: dodano ustanawianie świeżej sesji strony przed
-każdym nowym adresem wysyłania. Krótka regresja protokołu przeszła 33 kontrole,
-w tym zachowanie odmowy ponawiania niejednoznacznego zapisu. Przyczyna
-historycznej awarii nadal nie jest dowiedziona; poprawka wymaga kwalifikacji
-na zachowanej dużej kopii. Szczegóły i granice dowodów w [VALIDATION.md](../VALIDATION.md).
+Aktualizacja 30 października: próba zachowanej dużej kopii po poprawce sesji
+strony zakończyła się przekroczeniem czasu. Dokładna operacja i przyczyna
+pozostają nieznane. Poprawiono wskazywanie fazy odczytu listy i bezpieczne
+zapisywanie kategorii przerwanego żądania; 29 nowych krótkich kontroli oraz
+66 kontroli historii błędów przeszło na runtime kandydata r99. Nie jest to
+zaliczenie dużego transferu. Obraz, niedokończona kopia i historia są zachowane,
+a VM normalnie wyłączona. Przed kolejną próbą trzeba również rozwiązać brak
+miejsca na następny pełny eksport, zachowując istniejące dane.
+Szczegóły i granice dowodów w [VALIDATION.md](../VALIDATION.md).
 
 - Kwalifikacja całego przejścia przez interaktywny kreator Windows na zwykłym koncie; instalator EXE i odczyt planu pod tokenem zwykłego użytkownika przeszły test VM.
 - Kompletny proces obrazu Windows, wysłania, niezależnego pobrania i odzyskania za pomocą dostarczonej aplikacji.

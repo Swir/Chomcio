@@ -1,5 +1,39 @@
 # Sprawdzenie wydania 1.0.0
 
+## Faza odczytu listy i diagnostyka przekroczenia czasu — 30 października 2026
+
+Kandydat r90 został wdrożony w testowej VM. Harmonogram przed logowaniem
+podjął ten sam zachowany punkt kopii na podstawie nowego uruchomienia Windows,
+bez ręcznej zmiany dat i bez nowego obrazu. Próba zakończyła się `TIMEOUT`;
+w historii zachowano pięć niepowodzeń. Zapisana faza lokalnej kontroli nie
+rozstrzyga, która operacja zawiodła: kod pozostawiał ją widoczną podczas
+późniejszego odczytu listy i rozmiarów plików z chmury. Historyczne HTTP,
+operacja i przyczyna pozostają nieznane. Nie stwierdzono sukcesu uploadu.
+
+Poprawka `b1f6778` ustawia fazę odczytu listy przed wywołaniem sieci i zapisuje
+postęp transferu bez opóźnionego callbacku. Przerwanie oczekiwania we wspólnej
+funkcji wysyłania żądania zachowuje zamkniętą kategorię operacji oraz liczbowy
+kod wyjątku, bez surowej treści, adresu i wewnętrznego wyjątku. Kategoria
+`Cancellation` opisuje rodzaj wyjątku, nie ustaloną przyczynę awarii sieci.
+Nie klasyfikuje to wstecz historycznych błędów ani wszystkich możliwych
+przerw po otrzymaniu nagłówków. Anulowanie przez użytkownika nadal oznacza
+anulowanie; polityka ponawiania odczytów i odmowa ponawiania zapisów są zachowane.
+
+Nowy test odtworzył mylącą fazę na bibliotekach r90. Na dokładnym runtime
+r99 przeszło 29 krótkich kontroli faz, metadanych, anulowania i zachowania
+jednego niedokończonego punktu oraz 66 kontroli historii błędów. Użyto
+wyłącznie sztucznych danych i odpowiedzi HTTP. Nie powtarzano pełnych zestawów.
+Paczka r99 zawiera 676 sprawdzonych plików: zmieniono cztery DLL/PDB aplikacji
+i adaptera oraz dwa dokumenty, pozostałe 670 plików są identyczne z r90.
+Core i moduł obrazowania pozostają identyczne. R99 nie wdrożono jeszcze do VM.
+
+Świeży odczyt po niepowodzeniu potwierdził brak procesów kopii, wyłączone
+zadania, ukończony obraz i zachowany punkt. Na dysku roboczym pozostało około
+11,34 GB, mniej niż rozmiar kolejnego pełnego eksportu. Po kontroli bezczynności
+odłączono tylko testowy adapter i normalnie wyłączono VM. Nie usuwano kopii,
+eksportów ani kluczy. Poprawa diagnostyki nie kończy nowej dużej kopii;
+jej ukończenie, niezależny odczyt i pełna ścieżka użytkownika nadal blokują Stable.
+
 ## Sesja strony przed wysłaniem fragmentu — 30 października 2026
 
 Ograniczona próba aktywnej sesji przeszła 19 odczytów folderu przez trzy godziny.
@@ -28,8 +62,9 @@ Na dokładnej kombinacji bibliotek kandydata r90 ponownie przeszły te
 Nie powtarzano pełnych zestawów Cloud150/Studio14. ZIP r90 ma 676 sprawdzonych
 plików: zmieniły się tylko DLL/PDB adaptera Chomikuj, pozostałe 674 pliki,
 w tym główna aplikacja, Core i moduł obrazu, są identyczne z r64.
-Kod adaptera: e5e3f31. Tej paczki nie wdrożono jeszcze do testowej VM;
-rzeczywisty transfer zachowanej dużej kopii po poprawce nadal wymaga kwalifikacji.
+Kod adaptera: e5e3f31. W chwili tej kwalifikacji paczka nie była jeszcze
+wdrożona do VM. Późniejsze wdrożenie i nieudana próba zachowanej dużej kopii
+są opisane w sekcji powyżej; transfer nadal wymaga kwalifikacji.
 
 ## Naturalne wznowienie dużej kopii — 30 października 2026
 
