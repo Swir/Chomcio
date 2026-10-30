@@ -25,6 +25,12 @@ public sealed partial class ChomikujClient
     private async Task<CloudObject> UploadViaWebAsync(ChomikujFolder folder, string name,
         Stream input, long length, CancellationToken ct)
     {
+        // Folder protection or a previous object may have opened the portal
+        // session before lengthy local preparation/read-back. SOAP activity
+        // does not establish that its cookies and cached form are still valid.
+        // Establish one fresh portal session BEFORE requesting an address;
+        // neither an address request nor an ambiguous send is retried.
+        ResetWebSession();
         await EnsureWebSessionAsync(ct);
         Uri uploadUri;
         using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct))

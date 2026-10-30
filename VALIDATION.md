@@ -1,5 +1,28 @@
 # Sprawdzenie wydania 1.0.0
 
+## Sesja strony przed wysłaniem fragmentu — 30 października 2026
+
+Ograniczona próba aktywnej sesji przeszła 19 odczytów folderu przez trzy godziny.
+Następnie zarówno ta sesja, jak i nowe logowanie otrzymały poprawny adres HTTPS
+przy HTTP 200. Wysyłanie zawartości było zablokowane. Osobna sesja pozostawiona
+bez odczytów została wcześniej odrzucona przy odczycie folderu; jej raport nie
+zachował dokładnej kategorii odmowy. Wyniki nie ustalają historycznej przyczyny
+WebUploadUrl i nie potwierdzają ukończenia dużej kopii.
+
+Przegląd rzeczywistej ścieżki wykazał istotną różnicę: ochrona folderu otwiera
+sesję strony przed lokalnym przygotowaniem i kontrolą istniejących fragmentów.
+Próba aktywnej sesji otwierała ją dopiero na końcu. Produkt ustanawia teraz
+świeżą sesję strony przed każdym nowym żądaniem adresu wysyłania. Nie ponawia
+żądania adresu ani niejednoznacznego wysłania zawartości.
+
+Krótki test protokołu odtworzył WebUploadUrl na poprzednim kodzie po
+syntetycznym wygaśnięciu sesji strony przy nadal działającym SOAP.
+Po poprawce przeszły 33 kontrole: wznowienie po ochronie folderu i odczytach,
+niezależny odczyt wysłanych bajtów, odmowa sesji/adresu, brak lub niebezpieczny
+adres, niejednoznaczne wysłanie oraz anulowanie. HTTPS i ochrona folderu
+pozostają wymagane. To lokalny test mechanizmu, nie dowód przyczyny wcześniejszej
+awarii ani rzeczywistego ukończenia dużego uploadu po poprawce.
+
 ## Naturalne wznowienie dużej kopii — 30 października 2026
 
 Zadanie gotowego EXE r64 przed logowaniem podjęło zachowany punkt kopii w nowym

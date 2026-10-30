@@ -32,6 +32,12 @@ Poniższe obszary opisują stan funkcji; nie są punktami przyjętego modelu pro
 
 ## Co pozostaje do ukończenia
 
+Aktualizacja 30 października: dodano ustanawianie świeżej sesji strony przed
+każdym nowym adresem wysyłania. Krótka regresja protokołu przeszła 33 kontrole,
+w tym zachowanie odmowy ponawiania niejednoznacznego zapisu. Przyczyna
+historycznej awarii nadal nie jest dowiedziona; poprawka wymaga kwalifikacji
+na zachowanej dużej kopii. Szczegóły i granice dowodów w [VALIDATION.md](../VALIDATION.md).
+
 - Kwalifikacja całego przejścia przez interaktywny kreator Windows na zwykłym koncie; instalator EXE i odczyt planu pod tokenem zwykłego użytkownika przeszły test VM.
 - Kompletny proces obrazu Windows, wysłania, niezależnego pobrania i odzyskania za pomocą dostarczonej aplikacji.
 - Przewodnik nośnika ratunkowego USB/WinRE i odzyskanie przez dostarczoną ścieżkę użytkownika; odtworzenie na pustym dysku zostało już potwierdzone laboratoryjnie.
