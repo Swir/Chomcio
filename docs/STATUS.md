@@ -67,24 +67,31 @@ SOAP; pozostałe limity i weryfikacja danych pozostają zachowane. Przeszło
 27 nowych kontroli syntetycznych. Poprawiona biblioteka odczytała następnie
 2892 unikalne nazwy bez pobierania treści i zapisów, nadal bez manifestu
 oczekującej kopii. To potwierdza odczyt listy, nie ukończenie kopii.
-Kandydat r117 wymaga wdrożenia i próby transferu; ukończenie i niezależne
-pobranie nowej dużej kopii nadal wymagają potwierdzenia.
+Kandydat r117 został następnie wdrożony. 31 października o 07:10 UTC
+kontynuacja tej samej kopii zakończyła się sukcesem: 2 pliki, 15 369 275 273 B,
+potwierdzenie chmury, kod zadania 0, zgodny ostatni punkt i trzy wyczyszczone
+pola oczekiwania. Zachowano siedem wcześniejszych porażek i ten sam zestaw
+pięciu eksportów. Nie utworzono nowego obrazu ani kolejnego eksportu.
+Niezależne pobranie zatrzymało się na jednym odrzuconym logowaniu
+(`Auth` / `Rejected`), przed odczytem folderu lub pliku. Przyczyna odmowy
+pozostaje nieznana; nie wykonywano ponowień w pętli.
 Szczegóły i granice dowodów w [VALIDATION.md](../VALIDATION.md).
 
 - Kwalifikacja całego przejścia przez interaktywny kreator Windows na zwykłym koncie; instalator EXE i odczyt planu pod tokenem zwykłego użytkownika przeszły test VM.
 - Kompletny proces obrazu Windows, wysłania, niezależnego pobrania i odzyskania za pomocą dostarczonej aplikacji.
 - Przewodnik nośnika ratunkowego USB/WinRE i odzyskanie przez dostarczoną ścieżkę użytkownika; odtworzenie na pustym dysku zostało już potwierdzone laboratoryjnie.
 - Interaktywne logowanie w procesie systemowym i pełny codzienny cykl kopii systemu.
-- Rzeczywista kopia do chmury po wylogowaniu i restarcie. Nowe zadanie
-  Harmonogramu wykonało lokalne kopie przed logowaniem i po restarcie, ale
-  ta VM nie miała dostępu do sieci; nie łączyć zakresów dwóch osobnych prób.
-- Ukończenie i niezależne pobranie nowej kopii systemowej: obraz Windows jest
-  gotowy, a przerwany transfer zachowany. Sama obecność części fragmentów
-  w chmurze nie potwierdza kompletności ani integralności całej kopii.
+- Pełny cykl zadania chmurowego pozostawionego włączonego przez restart.
+  Lokalny test takiego zadania jest zaliczony. Nowa kopia chmurowa ukończyła
+  wznowienie przed logowaniem po uruchomieniu Windows; zakresów tych prób
+  nie należy utożsamiać.
+- Niezależne pobranie i odtworzenie nowej kopii systemowej. Wysyłanie jest
+  ukończone i potwierdzone przez produkt; osobny odczyt nadal wymaga zaliczenia.
 
 Próba naturalnego wznowienia 30 października zatrzymała się na braku poprawnego
 adresu wysyłania. Krótka próba nowej sesji otrzymała adres, lecz nie wysyłała
-pliku i nie wyjaśnia historycznej odmowy. Obraz i częściowa kopia są zachowane;
+pliku i nie wyjaśnia historycznej odmowy. Obraz zachowano, a późniejsze
+ukończenie transferu nie ustala przyczyny tamtej awarii;
 szczegóły oraz ograniczenia dowodów opisano w [VALIDATION.md](../VALIDATION.md).
 
 Oznaczenie Stable wymaga ukończenia i udokumentowania tych przepływów.

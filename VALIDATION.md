@@ -1,5 +1,36 @@
 # Sprawdzenie wydania 1.0.0
 
+## Ukończona nowa kopia i zatrzymany niezależny odczyt — 31 października 2026
+
+Kandydat r117 został wdrożony. O 07:10 UTC jedna kontynuacja zachowanego
+punktu zakończyła się sukcesem: ósmy rekord historii ma stan `Success`,
+zadanie zakończyło się kodem 0, program potwierdził zapis w chmurze i zgodny
+ostatni punkt. Wszystkie trzy pola oczekującej kopii zostały wyczyszczone.
+Siedem wcześniejszych niepowodzeń pozostało zachowanych w tej samej kolejności.
+
+Zakres obejmuje 2 pliki o łącznym rozmiarze 15 369 275 273 B. Produkt użył
+istniejącego zaszyfrowanego eksportu, z pełną kontrolą źródła, eksportu i
+pobranych bajtów oraz publikacją manifestu na końcu. Zestaw pięciu katalogów
+eksportu pozostał niezmieniony; nie tworzono kolejnego obrazu ani eksportu.
+Stan natywnego obrazu nadal potwierdza ukończenie z kodem 0.
+
+Harmonogram podjął punkt przed logowaniem, po naturalnej należności na nowym
+uruchomieniu Windows. Nie zmieniano ręcznie dat ani historii. Jest to
+wznowienie po uruchomieniu systemu; nie zastępuje osobnego testu zadania
+chmurowego pozostawionego włączonego przez restart. Wcześniejszy taki test
+lokalny pozostaje ważny w swoim zakresie.
+
+Następnie rozpoczęto niezależny odczyt na tym samym końcowym zestawie bibliotek,
+do nowego katalogu, bez zasiewania plikami źródłowymi. Jedno żądanie logowania
+zostało odrzucone: `ChomikujServiceException`, operacja `Auth`, wynik `Rejected`.
+Nie wykonano odczytu folderu, pobrania treści ani zapisu w chmurze. Dokładna
+przyczyna odmowy pozostaje nieznana. Nie ponawiano logowania w pętli.
+
+Ukończenie wysyłania nowej kopii jest potwierdzone. Jej niezależne pobranie
+i odtworzenie pozostają niezaliczone. Nadal wymagane są pełna dostarczona
+ścieżka GUI/nośnika/WinRE oraz zgodność końcowej paczki i dokumentacji.
+**Stable nie zostało wydane.**
+
 ## Pełna lista folderu ponad 2 MiB — 31 października 2026
 
 Jeden rzeczywisty odczyt samych nazw na r115 zakończył się
@@ -30,7 +61,8 @@ treści i zero zapisów. Potwierdza to usunięcie obecnej przeszkody odczytu
 listy, a nie integralność ani ukończenie dużej kopii. VM pozostała wyłączona.
 
 Kandydat r117 zachowuje Core i aplikację z r115, zmienia adapter.
-Wdrożenie oraz pełna próba transferu pozostają do potwierdzenia.
+Na tym etapie wdrożenie i pełna próba transferu pozostawały do potwierdzenia;
+późniejszy wynik opisano w pierwszej sekcji.
 Nadal nie wydano Stable; niezależne pobranie nowej kopii i pełna dostarczona
 ścieżka GUI/nośnika/WinRE pozostają wymagane.
 
