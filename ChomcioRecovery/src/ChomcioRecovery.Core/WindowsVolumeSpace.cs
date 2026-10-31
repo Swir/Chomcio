@@ -28,7 +28,9 @@ internal static class WindowsVolumeSpace
     {
         string full=Path.GetFullPath(path);
         if (!Directory.Exists(full)) throw new DirectoryNotFoundException("Destination volume directory unavailable.");
-        return Path.TrimEndingDirectorySeparator(full)+Path.DirectorySeparatorChar;
+        // These P/Invokes need the extended form even when System.IO already
+        // found a valid ordinary path beyond MAX_PATH. Query the same volume.
+        return WindowsNativePath.FromPath(Path.TrimEndingDirectorySeparator(full)+Path.DirectorySeparatorChar);
     }
 
     internal static string FileSystem(string existingDirectory)

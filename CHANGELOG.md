@@ -1,5 +1,47 @@
 # Historia wydań
 
+## Niewydane — lista dużych kopii i diagnostyka połączenia, 2026-10-27
+
+- Wyświetlenie listy kopii na Chomikuj korzysta z nazw rekordów i nie sprawdza
+  ponownie rozmiaru każdego fragmentu. Pobieranie oraz wysyłanie nadal wymagają
+  dokładnych rozmiarów i pełnej kontroli integralności.
+- Błędy połączenia zachowują bezpieczny kod Windows i kategorię przyczyny,
+  bez surowego wyjątku, adresów plików i tokenów. Nie rozszerzono automatycznych
+  ponowień na nieznane błędy ani błędy certyfikatów.
+
+## Niewydane — wznowienie pobierania, 2026-10-27
+
+- Przerwane pobieranie pamięta zaszyfrowane fragmenty także po zamknięciu programu.
+  Ponowne przywracanie tej samej kopii uwierzytelnia je i pobiera brakujące lub
+  uszkodzone fragmenty. Stary katalog pozostaje bez zmian, wynik trafia do nowego.
+- Konfiguracja sejfu i opis kopii są zawsze pobierane ponownie z chmury.
+  Zachowano kontrolę integralności, anulowanie oraz odmowę nadpisania danych.
+
+## Niewydane — przygotowanie kopii Windows, 2026-10-26
+
+- Dodano opcjonalną pracę przez Harmonogram Windows przy zamkniętym programie,
+  także przed zalogowaniem. Zadanie działa na zwykłym koncie i odczytuje klucze
+  chronione przez DPAPI. Hasła Windows nie zapisuje się w ustawieniach Chomcio.
+- Dodano kopię po uruchomieniu komputera, wspólną blokadę GUI/procesu w tle
+  i możliwość bezpiecznego zatrzymania kopii przed otwarciem programu.
+  Potwierdzono dwie lokalne kopie przed logowaniem, rozdzielone restartem VM,
+  oraz osobny mały test gotowego EXE z rzeczywistym Chomikuj.
+- Naprawiono zapis i odtwarzanie w głęboko zagnieżdżonych katalogach Windows.
+  Natywne operacje otrzymują pełną postać długiej ścieżki; zachowano kontrolę
+  uprawnień, integralności i odmowę nadpisania istniejących danych.
+- Dołączono moduł obrazowania do paczki i dodano instalację EXE z kreatora.
+  Instalacja wymaga zgody administratora i pustego osobnego dysku NTFS;
+  nie formatuje nośników ani nie zmienia zasad PowerShell.
+- Dodano niezależne miejsce pobierania kopii Windows oraz rozpoznawanie obrazu
+  na komputerze bez starego profilu i planu tworzenia kopii.
+- Dodano przygotowanie sprawdzonego `WindowsImageBackup` do odzyskiwania w WinRE,
+  bez nadpisywania istniejącej kopii, z anulowaniem i kontrolą integralności.
+- Dodano przewodnik z wejściem do systemowego kreatora USB i zapisem instrukcji.
+  Test jego interfejsu używał atrapy uruchomienia narzędzia Windows. Nie wykonano
+  nim rzeczywistego utworzenia USB, startu z USB ani przywrócenia Windows.
+- Wykonano testy syntetyczne nowych ścieżek i przygotowanie zachowanego obrazu
+  pobranego z testowego Chomikuj. Kwalifikacja całego produktu nadal trwa.
+
 ## Korekta statusu — 2026-10-23
 
 Wydanie 1.0.0 zmieniono na Preview. Oznaczenie całego produktu jako Stable było

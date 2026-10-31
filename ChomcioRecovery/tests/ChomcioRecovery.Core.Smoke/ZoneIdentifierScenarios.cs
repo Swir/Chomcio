@@ -58,7 +58,11 @@ internal static class ZoneIdentifierScenarios
         File.Delete(file+":untracked");
         File.WriteAllBytes(file+WindowsZoneIdentifier.StreamName,new byte[WindowsZoneIdentifier.MaximumBytes+1]);
         Fails(()=>vault.BackupDirectory(source,preserveZoneIdentifiers:true),"oversized source Zone.Identifier fails closed");
-        File.WriteAllBytes(file+WindowsZoneIdentifier.StreamName,Array.Empty<byte>());
+        // Explicitly truncate and verify the ADS fixture. A zero-byte
+        // File.WriteAllBytes call did not truncate the existing stream on the
+        // qualification host, leaving the preceding oversized-fixture bytes.
+        using(var emptyStream=new FileStream(file+WindowsZoneIdentifier.StreamName,FileMode.Open,FileAccess.Write,FileShare.None))
+        {emptyStream.SetLength(0);emptyStream.Flush(true);check(emptyStream.Length==0,"empty source stream fixture is actually truncated");}
         var empty=vault.BackupDirectory(source,preserveZoneIdentifiers:true);
         string emptyTarget=Path.Combine(root,"empty-zone");vault.RestoreSnapshot(empty.SnapshotId,emptyTarget);
         check(File.ReadAllBytes(Path.Combine(emptyTarget,"downloaded.txt")+WindowsZoneIdentifier.StreamName).Length==0,"empty Zone.Identifier is retained as a stream");

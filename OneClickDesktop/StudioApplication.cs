@@ -11,6 +11,7 @@ internal sealed class StudioApplication : ApplicationContext
     internal readonly NotifyIcon Tray;
     private readonly System.Windows.Forms.Timer timer=new(){Interval=30_000};
     private readonly string? logon;
+    private string? boot;
     private bool closing,checking;
     private bool notifiedHidden;
     internal StudioApplication(bool autoStart,string? root=null)
@@ -51,19 +52,20 @@ internal sealed class StudioApplication : ApplicationContext
         checking=true;
         try
         {
+            if(boot is null&&Store.Data.Profiles.Any(p=>p.Enabled&&p.AtBoot))boot=await Task.Run(BootIdentity.Read);
             foreach(var profile in Store.Data.Profiles.ToArray())
             {
                 if(closing||Store.Data.Paused||Window.ManualWindowOpen||!Window.Enabled)break;
                 var now=DateTimeOffset.Now;
-                if(!SchedulePolicy.Due(profile,now,logon,Store.Data.Paused))continue;
+                if(!SchedulePolicy.Due(profile,now,logon,Store.Data.Paused,boot))continue;
                 JobSecrets secrets;
                 try{secrets=WindowsSecrets.Unprotect(profile.ProtectedSecrets!);}
                 catch(System.Security.Cryptography.CryptographicException)
                 {
-                    SchedulePolicy.MarkAttempt(profile,now,logon);
+                    SchedulePolicy.MarkAttempt(profile,now,logon,boot);
                     Store.Data.History.Add(new(){Name=profile.Name,ProfileId=profile.Id,State=RunState.Failed,Finished=now,Detail="Windows nie odblokował zapamiętanych haseł. Otwórz ustawienia zadania."});Store.Save();ShowNotice("Zadanie wymaga ponownego wpisania haseł.",true);continue;
                 }
-                await Engine.RunAsync(profile,secrets,now,logon);
+                await Engine.RunAsync(profile,secrets,now,logon,boot);
             }
         }
         catch(Exception){ShowNotice("Automatyczne zadanie wymaga uwagi. Sprawdź historię i ustawienia.",true);}
@@ -81,10 +83,16 @@ internal sealed class StudioApplication : ApplicationContext
     internal static void Run(bool autoStart)
     {
         string scope=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(StudioStore.DefaultRoot.ToUpperInvariant()+Environment.UserName)))[..24];
-        using var mutex=new Mutex(false,"Local\\ChomcioRecovery.Studio."+scope);
-        bool owns;
-        try{owns=mutex.WaitOne(0);}catch(AbandonedMutexException){owns=true;}
-        if(!owns){try{using var signal=EventWaitHandle.OpenExisting("Local\\ChomcioRecovery.Show."+scope);signal.Set();}catch(WaitHandleCannotBeOpenedException){}return;}
+        using var mutex=StudioProcessScope.Create(StudioStore.DefaultRoot);
+        bool owns=StudioProcessScope.Acquire(mutex);
+        if(!owns)
+        {
+            try{using var signal=EventWaitHandle.OpenExisting("Local\\ChomcioRecovery.Show."+scope);signal.Set();return;}
+            catch(WaitHandleCannotBeOpenedException){}
+            if(autoStart)return;
+            using var waiting=new BackgroundWaitWindow(StudioStore.DefaultRoot,mutex);
+            Application.Run(waiting);if(!waiting.Acquired)return;
+        }
         using var wake=new EventWaitHandle(false,EventResetMode.AutoReset,"Local\\ChomcioRecovery.Show."+scope);
         try
         {

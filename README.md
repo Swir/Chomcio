@@ -45,6 +45,11 @@ Liczba testów ani numer wersji nie oznaczają procentu ukończenia.
 | Automatyka | Opcjonalnie codziennie i po zalogowaniu, przy działającym programie |
 | Dalsze prace | [Stan produktu i warunki ukończenia](docs/STATUS.md) |
 
+W kandydacie roboczym dodano [kopie przy zamkniętym programie](docs/BACKGROUND-COPIES.md).
+Lokalne wykonanie przed logowaniem i po restarcie VM oraz osobny mały test
+Chomikuj przeszły kontrolę. Funkcji nie ma w publicznym ZIP v1.0.0;
+pełna kwalifikacja odzyskiwania Windows nadal trwa.
+
 <img width="100%" src="https://raw.githubusercontent.com/Swir/Swir/main/assets/power-divider-v4.svg" alt="" />
 
 <a id="funkcje"></a>

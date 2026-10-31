@@ -11,6 +11,8 @@ internal static class Program
     {
         try
         {
+            if(args.Length==4&&args[0]=="--install")return PackageInstaller.Install(args[1],args[2],args[3]);
+            if(args.Length==1&&args[0]=="--check-package"){using var package=WorkerPackage.Open(AppContext.BaseDirectory);Console.WriteLine("IMAGE_WORKER_PACKAGE=PASS");return 0;}
             if(args.Length!=1||args[0] is not ("--serve" or "--probe"))return 2;
             if(!WindowsIdentity.GetCurrent().User!.IsWellKnown(WellKnownSidType.LocalSystemSid))return 3;
             if(!Path.GetDirectoryName(Environment.ProcessPath)!.Equals(BrokerFiles.InstallRoot,StringComparison.OrdinalIgnoreCase))return 4;
@@ -48,6 +50,7 @@ internal static class Program
                 await Task.Delay(TimeSpan.FromSeconds(15));
             }while(true);
         }
+        catch(InstallerFailure ex){return ex.Code;}
         catch(Exception ex)
         {
             // No paths, request data, native command output or secrets in console.

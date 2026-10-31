@@ -10,6 +10,7 @@ internal sealed class ProfileEditor : Form
     private readonly CheckBox remember=new(){Text="Zapamiętaj hasła na tym komputerze",AutoSize=true,Checked=true};
     private readonly CheckBox enabled=new(){Text="Kopia aktywna",AutoSize=true,Checked=true};
     private readonly CheckBox atLogon=new(){Text="Rób kopię po zalogowaniu do Windows",AutoSize=true};
+    private readonly CheckBox atBoot=new(){Name="BackupAtBoot",Text="Rób kopię po uruchomieniu komputera",AutoSize=true};
     private readonly CheckBox daily=new(){Text="Rób kopię codziennie o",AutoSize=true};
     private readonly CheckBox dated=new(){Name="CloudDateFolders",Text="Foldery w Chomikuj nazwane datą kopii",AutoSize=true};
     private readonly CheckBox protectFolder=new(){Name="ProtectCloudFolder",Text="Dodatkowo chroń folder w Chomikuj hasłem",AutoSize=true};
@@ -73,7 +74,7 @@ internal sealed class ProfileEditor : Form
         destination.Items.AddRange(new object[]{"Na dysku — lokalnym lub zewnętrznym","Na moim koncie Chomikuj"});destination.SelectedIndex=(int)draft.Destination;
         login.Text=previous?.CloudLogin??account?.CloudLogin??"";
         cloudPassword.Text=previous?.CloudPassword??account?.CloudPassword??"";
-        enabled.Checked=draft.Enabled;atLogon.Checked=draft.AtLogon;daily.Checked=draft.Daily;time.Value=DateTime.Today.AddMinutes(Math.Clamp(draft.DailyMinute,0,1439));
+        enabled.Checked=draft.Enabled;atLogon.Checked=draft.AtLogon;atBoot.Checked=draft.AtBoot;daily.Checked=draft.Daily;time.Value=DateTime.Today.AddMinutes(Math.Clamp(draft.DailyMinute,0,1439));
         dated.Checked=draft.CloudDateFolders;
         protectFolder.Checked=draft.ProtectCloudFolder;
         // Existing profiles retain their key. A global preference only chooses
@@ -86,12 +87,13 @@ internal sealed class ProfileEditor : Form
         automaticKey.CheckedChanged+=(_,_)=>{if(automaticKey.Checked){remember.Checked=true;if(step==2)Render();}};
         ownKey.CheckedChanged+=(_,_)=>{if(ownKey.Checked&&step==2)Render();};
         atLogon.CheckedChanged+=(_,_)=>{if(atLogon.Checked)remember.Checked=true;};daily.CheckedChanged+=(_,_)=>{if(daily.Checked)remember.Checked=true;};
+        atBoot.CheckedChanged+=(_,_)=>{if(atBoot.Checked)remember.Checked=true;};
         Render();
     }
     private void Render()
     {
         // Keep field instances so moving back never discards what was entered.
-        foreach(var input in new Control[]{name,source,repository,password,confirmation,login,cloudPassword,destination,remember,enabled,atLogon,daily,time,automaticKey,ownKey,dated,protectFolder,imagePlan})input.Parent?.Controls.Remove(input);
+        foreach(var input in new Control[]{name,source,repository,password,confirmation,login,cloudPassword,destination,remember,enabled,atLogon,atBoot,daily,time,automaticKey,ownKey,dated,protectFolder,imagePlan})input.Parent?.Controls.Remove(input);
         foreach(Control old in body.Controls.Cast<Control>().ToArray()){body.Controls.Remove(old);old.Dispose();}
         error.Text="";back.Visible=step>0;next.Text=step==2?(original is null?(destination.SelectedIndex==1?"Wyślij kopię na Chomikuj":"Wykonaj kopię na dysku"):"Zapisz ustawienia"):"Dalej";
         stepLabel.Text=$"{step+1} Z 3  •  {(step==0?(IsWindows?"TWÓJ WINDOWS":"TWOJE PLIKI"):step==1?"MIEJSCE KOPII":"HASŁO I AUTOMAT")}";
@@ -108,7 +110,18 @@ internal sealed class ProfileEditor : Form
                 Field("Nazwa kopii",name);
                 Note("Obraz powstaje na osobnym dysku roboczym. Następnie\nprogram szyfruje go, wysyła i sprawdza w wybranym miejscu.\nPotrzebujesz wolnego miejsca także podczas wysyłania.",75);
                 if(imagePlan.Items.Count==0)
-                    Note(imagePlanError??"Najpierw przygotuj moduł systemowy na tym komputerze.\nWymaga osobnego, pustego dysku NTFS i zatwierdzenia\nadministratora. W tej wersji instalacja jest osobnym krokiem.",80);
+                {
+                    Note(imagePlanError??"Przygotuj moduł systemowy. Wymaga osobnego, pustego\ndysku NTFS i zatwierdzenia administratora.",55);
+                    if(original is null)Field("",StudioTheme.Button("Przygotuj moduł Windows",()=>
+                    {
+                        using var setup=new ImageWorkerSetupWindow();
+                        if(setup.ShowDialog(this)!=DialogResult.OK)return;
+                        imagePlan.Items.Clear();imagePlanError=null;
+                        foreach(var plan in imagePlans.List())imagePlan.Items.Add(plan);
+                        if(imagePlan.Items.Count==1)imagePlan.SelectedIndex=0;
+                        Render();
+                    }),40);
+                }
             }
             else
             {
@@ -168,6 +181,8 @@ internal sealed class ProfileEditor : Form
             Field("",remember,28);
             Note("Przycisk „Klucz odzyskiwania” pozwoli zapisać klucz poza PC.\nBędzie potrzebny po awarii lub ponownej instalacji Windows.",54);
             Field("Automatyczne wykonywanie — opcjonalne",atLogon,28);
+            Field("",atBoot,28);
+            Note("Aby kopie ruszały przed zalogowaniem, w ustawieniach włącz\n„Kopie przy zamkniętym programie”.",46);
             var line=new TableLayoutPanel{ColumnCount=2};line.ColumnStyles.Add(new(SizeType.Percent,100));line.ColumnStyles.Add(new(SizeType.Absolute,110));line.Controls.Add(daily,0,0);line.Controls.Add(time,1,0);Field("",line,32);
             if(original is not null)Field("",enabled,28);
             Note("Automat uruchamia program z Windowsem. Bez niego klikasz „Wykonaj kopię”.",33);
@@ -215,7 +230,7 @@ internal sealed class ProfileEditor : Form
         draft.Name=name.Text.Trim();
         if(!IsWindows){draft.Source=source.Text.Trim();draft.Repository=repository.Text.Trim();}
         draft.Destination=(BackupDestination)destination.SelectedIndex;
-        draft.Enabled=enabled.Checked;draft.AtLogon=atLogon.Checked;draft.Daily=daily.Checked;draft.DailyMinute=time.Value.Hour*60+time.Value.Minute;
+        draft.Enabled=enabled.Checked;draft.AtLogon=atLogon.Checked;draft.AtBoot=atBoot.Checked;draft.Daily=daily.Checked;draft.DailyMinute=time.Value.Hour*60+time.Value.Minute;
         if(draft.PendingSnapshot is not null&&draft.CloudDateFolders!=dated.Checked)
             throw new ArgumentException("Najpierw dokończ przerwane wysyłanie. Potem możesz zmienić sposób nazywania folderów.");
         draft.CloudDateFolders=dated.Checked;
@@ -223,7 +238,7 @@ internal sealed class ProfileEditor : Form
         if(draft.ProtectCloudFolder&&!remember.Checked)
             throw new ArgumentException("Zaznacz zapamiętanie haseł, aby zachować także losowe hasło folderu Chomikuj.");
         JobEngine.Validate(draft,secrets);
-        if((draft.AtLogon||draft.Daily)&&!remember.Checked)throw new ArgumentException("Zaznacz zapamiętanie haseł albo wyłącz automatyczne wykonywanie.");
+        if((draft.AtLogon||draft.AtBoot||draft.Daily)&&!remember.Checked)throw new ArgumentException("Zaznacz zapamiętanie haseł albo wyłącz automatyczne wykonywanie.");
         if(Directory.Exists(draft.Repository)){using var vault=LocalEncryptedVault.Open(draft.Repository,secrets.VaultPassword);}
         if(original is not null&&(draft.Source!=original.Source||draft.Repository!=original.Repository||draft.Destination!=original.Destination||secrets.CloudLogin!=(previous?.CloudLogin??secrets.CloudLogin)))throw new ArgumentException("Dla innego folderu lub konta dodaj nową kopię w głównym oknie.");
         draft.ProtectedSecrets=remember.Checked?WindowsSecrets.Protect(secrets):null;

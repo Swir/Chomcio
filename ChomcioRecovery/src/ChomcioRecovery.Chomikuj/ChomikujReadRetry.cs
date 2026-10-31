@@ -75,17 +75,81 @@ public sealed partial class ChomikujClient
 
     private sealed class CloudReadTimeoutException() : IOException("Chomikuj nie odpowiedział w wyznaczonym czasie.");
 
-    // Preserve classification without retaining a raw inner exception that
-    // could expose a signed URL through Exception.ToString().
-    private sealed class CloudTransportException(string message, HttpRequestError error) : IOException(message)
+    private sealed class CloudTransferCanceledException : OperationCanceledException
     {
-        public HttpRequestError HttpRequestError { get; } = error;
+        internal HttpOperation Operation { get; }
+        internal int CauseHResult { get; }
+        internal CloudTransferCanceledException(OperationCanceledException cause,HttpOperation operation)
+            :base("Przerwano oczekiwanie na odpowiedź Chomikuj.",cause.CancellationToken)
+        {
+            Operation=Enum.IsDefined(operation)?operation:HttpOperation.Unknown;
+            CauseHResult=cause.HResult;
+        }
     }
 
-    private sealed class CloudHttpException(HttpStatusCode code, TimeSpan? retryAfter)
-        : IOException("Chomikuj: błąd HTTP " + (int)code + ". Operacja niepotwierdzona.")
+    // Preserve classification without retaining a raw inner exception that
+    // could expose a signed URL through Exception.ToString().
+    private sealed class CloudTransportException : IOException
     {
-        internal HttpStatusCode StatusCode { get; } = code;
-        internal TimeSpan? RetryAfter { get; } = retryAfter;
+        public HttpRequestError HttpRequestError { get; }
+        public HttpOperation Operation { get; }
+        public int? NativeErrorCode { get; }
+        public int? CauseHResult { get; }
+        public string? CauseKind { get; }
+        internal CloudTransportException(string message,HttpRequestError error):this(message,error,null){}
+        internal CloudTransportException(string message,HttpRequestError error,Exception? cause):this(message,error,cause,HttpOperation.Unknown){}
+        internal CloudTransportException(string message,HttpRequestError error,Exception? cause,HttpOperation operation):base(message)
+        {
+            HttpRequestError=Enum.IsDefined(error)?error:HttpRequestError.Unknown;
+            Operation=Enum.IsDefined(operation)?operation:HttpOperation.Unknown;
+            // Keep only bounded numeric diagnostics and fixed categories. Never
+            // retain the raw exception, its message, data, URL or stack text.
+            for(int depth=0;cause is not null&&depth<8;depth++,cause=cause.InnerException)
+            {
+                CauseHResult=cause.HResult;
+                CauseKind=cause switch
+                {
+                    System.Net.Sockets.SocketException=>"Socket",
+                    System.ComponentModel.Win32Exception=>"Windows",
+                    System.Security.Authentication.AuthenticationException=>"Authentication",
+                    HttpRequestException=>"Http",
+                    IOException=>"IO",
+                    _=>"Other"
+                };
+                if(cause is System.ComponentModel.Win32Exception native)NativeErrorCode=native.NativeErrorCode;
+            }
+        }
+    }
+
+    // Project only fixed categories and numeric codes. The original exception,
+    // authority, message and stack must not enter persisted application history.
+    public sealed record TransportFailure(HttpRequestError Error,HttpOperation Operation,
+        int? NativeErrorCode,int? CauseHResult,string? CauseKind);
+    public static TransportFailure? GetTransportFailure(Exception error)
+        =>error switch
+        {
+            CloudTransportException transport=>new(transport.HttpRequestError,transport.Operation,
+                transport.NativeErrorCode,transport.CauseHResult,transport.CauseKind),
+            CloudTransferCanceledException cancelled=>new(HttpRequestError.Unknown,cancelled.Operation,
+                null,cancelled.CauseHResult,"Cancellation"),
+            _=>null
+        };
+
+    // Expose numeric metadata and a closed operation category, never body or URL.
+    public enum HttpOperation { Unknown, SoapRequest, WebSession, UploadAddress, UploadContent, DownloadContent, FolderProtection }
+
+    public sealed class CloudHttpException : IOException
+    {
+        public CloudHttpException(HttpStatusCode code, TimeSpan? retryAfter)
+            : this(code,retryAfter,HttpOperation.Unknown) { }
+        public CloudHttpException(HttpStatusCode code, TimeSpan? retryAfter,HttpOperation operation)
+            : base("Chomikuj: błąd HTTP " + (int)code + ". Operacja niepotwierdzona.")
+        {
+            StatusCode=code;RetryAfter=retryAfter;
+            Operation=Enum.IsDefined(operation)?operation:HttpOperation.Unknown;
+        }
+        public HttpStatusCode StatusCode { get; }
+        public TimeSpan? RetryAfter { get; }
+        public HttpOperation Operation { get; }
     }
 }

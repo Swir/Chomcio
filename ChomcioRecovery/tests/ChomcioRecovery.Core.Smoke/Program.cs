@@ -32,6 +32,12 @@ Directory.CreateDirectory(sandbox);
 string fixtureStages=Path.Combine(sandbox,"identity-fixtures");Directory.CreateDirectory(fixtureStages);
 try
 {
+    LongPathScenarios.Run(sandbox, Check);
+    if (args.SequenceEqual(new[]{"--long-paths-only"}))
+    {
+        Console.WriteLine("CHOMCIO_LONG_PATH_ASSERTIONS="+assertions);
+        return 0;
+    }
     VolumePathScenarios.Run(sandbox, Check);
     if (args.SequenceEqual(new[]{"--volume-paths-only"}))
     {

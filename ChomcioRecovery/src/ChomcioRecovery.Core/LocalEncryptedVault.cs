@@ -11,7 +11,7 @@ namespace ChomcioRecovery.Core;
 /// Local v1 prototype. Immutable encrypted chunks and encrypted snapshots;
 /// never uploads data or changes a system partition. Not a system image tool.
 /// </summary>
-public sealed class LocalEncryptedVault : IDisposable
+public sealed partial class LocalEncryptedVault : IDisposable
 {
     public const int ChunkBytes = 4 * 1024 * 1024;
     private const int NonceBytes = 12;
@@ -1569,6 +1569,21 @@ public sealed class LocalEncryptedVault : IDisposable
             finally { CryptographicOperations.ZeroMemory(digest); }
         }
         finally { CryptographicOperations.ZeroMemory(plaintext); }
+    }
+
+    internal static void RequireSafeRepositoryReadPath(string path)=>EnsureNoReparsePointsInPath(path);
+
+    internal byte[] ReadAuthenticatedChunkForReuse(string previousRepository,string id,CancellationToken token)
+    {
+        CheckNotDisposed();token.ThrowIfCancellationRequested();ValidateObjectId(id);
+        byte[] captured=ReadBoundedFile(Path.Combine(previousRepository,"objects",id[..2],id+".obj"),ChunkBytes+HeaderBytes,token);
+        try
+        {
+            AuthenticateCapturedImportedChunk(id,captured);
+            token.ThrowIfCancellationRequested();
+            return captured;
+        }
+        catch{CryptographicOperations.ZeroMemory(captured);throw;}
     }
 
     // Fault observer is ONLY available to friend-assembly native smoke tests.

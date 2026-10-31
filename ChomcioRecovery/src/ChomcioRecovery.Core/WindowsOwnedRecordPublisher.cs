@@ -149,7 +149,9 @@ internal static class WindowsOwnedRecordPublisher
 
     private static byte[] BuildNoReplaceRenameBuffer(string fullDestination)
     {
-        byte[] path = Encoding.Unicode.GetBytes(fullDestination);
+        // SetFileInformationByHandle does not perform System.IO's long-path
+        // conversion. Keep the same pinned/no-replace operation at any depth.
+        byte[] path = Encoding.Unicode.GetBytes(WindowsNativePath.FromPath(fullDestination));
         int fileNameOffset = checked((int)Marshal.OffsetOf<RenameInfoLayout>(nameof(RenameInfoLayout.FileName)));
         int lengthOffset = checked((int)Marshal.OffsetOf<RenameInfoLayout>(nameof(RenameInfoLayout.FileNameLength)));
         byte[] buffer = new byte[checked(fileNameOffset + path.Length + sizeof(char))];

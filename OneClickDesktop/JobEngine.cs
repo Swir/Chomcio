@@ -46,7 +46,11 @@ internal sealed class AccountJobCloud : IJobCloud
         var remote=client.OpenFolder(folder);
         if(CloudFolderPlan.CanReplaceUnconfirmed(profile))
         {
-            try{await remote.ListAsync(token);}
+            // This preflight only distinguishes an accessible folder from the
+            // service's explicit unavailable response. Resolving every HTTP
+            // length here duplicates the transfer's authenticated verification.
+            // Name discovery proves neither completeness nor byte integrity.
+            try{await remote.ListNamesAsync(token);}
             catch(ChomikujServiceException error) when(error.Failure==ChomikujFailure.RequestedFilesUnavailable)
             {
                 // This folder has NEVER held a confirmed point in this profile.
@@ -126,7 +130,7 @@ internal sealed class JobEngine
             throw new ArgumentException("Hasło folderu Chomikuj musi być inne niż klucz szyfrowania.");
         if(profile.DailyMinute is <0 or >=1440) throw new ArgumentException("Niepoprawna godzina harmonogramu.");
     }
-    internal async Task<RunRecord?> RunAsync(BackupProfile profile,JobSecrets secrets,DateTimeOffset now,string? logon=null)
+    internal async Task<RunRecord?> RunAsync(BackupProfile profile,JobSecrets secrets,DateTimeOffset now,string? logon=null,string? boot=null)
     {
         if(!await gate.WaitAsync(0)) return null;
         using var cancellation=new CancellationTokenSource();
@@ -135,7 +139,7 @@ internal sealed class JobEngine
         var record=new RunRecord{ProfileId=profile.Id,Name=profile.Name,Started=now,State=RunState.Running,Content=profile.Content};
         try
         {
-            SchedulePolicy.MarkAttempt(profile,now,logon);
+            SchedulePolicy.MarkAttempt(profile,now,logon,boot);
             store.Data.History.Add(record); store.Save();
             secrets=VaultKeys.Prepare(store,profile,secrets);
             Validate(profile,secrets);
@@ -153,22 +157,29 @@ internal sealed class JobEngine
                 if(profile.PendingCloudDate is null||profile.Content==BackupContent.Files&&profile.PendingSnapshot is null)
                     profile.PendingCloudDate=CloudFolderPlan.Day(now);
                 profile.PendingSnapshot=snapshot; store.Save();
+                string? prepared=SystemImageStorage.FindPreparedTransfer(store,profile,snapshot,token);
                 SetPhase("Łączenie z Chomikuj");
                 int previousFolders=profile.PreviousUnconfirmedCloudFolders.Count;
                 using var connection=cloudFactory();
                 var remote=await connection.ConnectAsync(profile,secrets,token); store.Save();
                 if(profile.PreviousUnconfirmedCloudFolders.Count>previousFolders)
                     SetPhase("Wysyłanie do nowego folderu; poprzedni folder zachowano");
-                string staging=SystemImageStorage.TransferDirectory(store,profile,Guid.NewGuid().ToString("N"));
-                Directory.CreateDirectory(Path.GetDirectoryName(staging)!);
                 SetPhase("Przygotowanie plików do wysłania");
-                var progress=new Progress<CloudProgress>(p=>
+                var progress=new InlineCloudProgress(p=>
                 {
                     if(!ReferenceEquals(active,cancellation)) return;
                     LocalProgress=null;Phase=p.Phase; CompletedRecords=p.Completed; TotalRecords=p.Total; Changed?.Invoke();
                 });
-                await new CloudVaultTransfer(remote).UploadSnapshotAsync(profile.Repository,secrets.VaultPassword,snapshot,staging,progress,token,
-                    LocalObserver(token));
+                var reportedRemote=new ListingProgressVault(remote,()=>SetPhase("Sprawdzanie listy i rozmiarów plików w chmurze"));
+                var transfer=new CloudVaultTransfer(reportedRemote);
+                if(prepared is not null)
+                    await transfer.UploadPreparedSnapshotAsync(profile.Repository,secrets.VaultPassword,snapshot,prepared,progress,token,LocalObserver(token));
+                else
+                {
+                    string staging=SystemImageStorage.TransferDirectory(store,profile,Guid.NewGuid().ToString("N"));
+                    Directory.CreateDirectory(Path.GetDirectoryName(staging)!);
+                    await transfer.UploadSnapshotAsync(profile.Repository,secrets.VaultPassword,snapshot,staging,progress,token,LocalObserver(token));
+                }
             }
             profile.LastSuccess=DateTimeOffset.UtcNow; profile.LastSnapshot=snapshot; profile.PendingSnapshot=null;profile.PendingCloudDate=null;
             profile.PendingSystemImage=null;
@@ -187,7 +198,27 @@ internal sealed class JobEngine
         {
             record.State=RunState.Failed;record.FailureStage=Phase;
             record.FailureCode=FailureId(error);
+            if(error is ChomikujClient.CloudHttpException http)
+            {
+                record.HttpStatus=(int)http.StatusCode;
+                record.RetryAfterSeconds=http.RetryAfter?.TotalSeconds;
+                record.HttpOperation=http.Operation==ChomikujClient.HttpOperation.Unknown?null:http.Operation.ToString();
+            }
+            if(ChomikujClient.GetTransportFailure(error) is {} transport)
+            {
+                record.TransportError=transport.Error.ToString();
+                record.HttpOperation=transport.Operation==ChomikujClient.HttpOperation.Unknown?null:transport.Operation.ToString();
+                record.NativeErrorCode=transport.NativeErrorCode;
+                record.CauseHResult=transport.CauseHResult;
+                record.CauseKind=transport.CauseKind;
+            }
             record.Detail=SafeError(error)+" Etap: "+record.FailureStage+" ["+record.FailureCode+"].";
+            if(ChomikujClient.GetResponseFailure(error) is {} response)
+            {
+                record.ResponseFailure=response.Reason.ToString();
+                record.HttpOperation=response.Operation.ToString();
+                record.Detail+=" Odpowiedź: "+record.ResponseFailure+"; operacja: "+record.HttpOperation+".";
+            }
         }
         finally
         {
@@ -282,6 +313,20 @@ internal sealed class JobEngine
     });
     private sealed class InlineVaultProgress(Action<VaultProgress> report):IProgress<VaultProgress>
     {public void Report(VaultProgress value)=>report(value);}
+    // FailureStage must be set before a synchronous/fast remote failure, not
+    // later by a queued progress callback. UI listeners already marshal updates.
+    private sealed class InlineCloudProgress(Action<CloudProgress> report):IProgress<CloudProgress>
+    {public void Report(CloudProgress value)=>report(value);}
+    private sealed class ListingProgressVault(ICloudVault inner,Action report):ICloudVault
+    {
+        public Task<IReadOnlyList<CloudObject>> ListAsync(CancellationToken token)
+        {report();return inner.ListAsync(token);}
+        public Task<IReadOnlyList<string>> ListNamesAsync(CancellationToken token)=>inner.ListNamesAsync(token);
+        public Task<CloudObject> UploadAsync(string name,Stream input,long length,CancellationToken token)
+            =>inner.UploadAsync(name,input,length,token);
+        public Task DownloadAsync(CloudObject file,Stream output,long maximumBytes,CancellationToken token)
+            =>inner.DownloadAsync(file,output,maximumBytes,token);
+    }
     private void SetPhase(string phase){ LocalProgress=null;CompletedRecords=TotalRecords=0;Phase=phase; Changed?.Invoke(); }
     internal static string FailureId(Exception error)=>error switch
     {
@@ -307,7 +352,11 @@ internal sealed class JobEngine
         UnauthorizedAccessException=>"Brak dostępu do folderu. Sprawdź uprawnienia i podłączenie dysku.",
         DirectoryNotFoundException=>"Folder źródłowy lub dysk kopii jest niedostępny.",
         ChomikujServiceException e=>e.Message,
+        ChomikujClient.CloudHttpException e=>"Chomikuj: błąd HTTP "+(int)e.StatusCode+". Kopia pozostaje do wznowienia."+
+            (e.RetryAfter is {TotalSeconds:>0} delay?" Serwer zaleca odczekać co najmniej "+Math.Ceiling(delay.TotalSeconds)+" s.":""),
         ChomikujReadException e=>e.Message,
+        IOException e when ChomikujClient.GetTransportFailure(e) is not null=>
+            "Przerwano połączenie z Chomikuj. Nie potwierdzono operacji; kopia pozostaje do wznowienia.",
         ChomikujFolderProtectionException e=>e.Message,
         OperationCanceledException=>"Serwer nie odpowiedział w wyznaczonym czasie. Ponów zadanie.",
         IOException {InnerException:System.ComponentModel.Win32Exception native}=>

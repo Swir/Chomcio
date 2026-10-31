@@ -11,6 +11,22 @@ internal static class ReadRetryTests
 
     internal static async Task Run(Action<bool, string> check, Func<Func<Task>, string, Task> fails)
     {
+        foreach(int code in new[]{12345,unchecked((int)0x80090325u)})
+        {
+            using var server=new FaultServer();using var client=await Connect(server);
+            server.GetFault=(_,_)=>throw new HttpRequestException(HttpRequestError.Unknown,"synthetic-private-url",Schannel(code));
+            using var output=new MemoryStream();
+            try{await client.OpenFolder(Folder).DownloadAsync(File,output,3,default);throw new Exception("Expected unknown transport failure");}
+            catch(IOException error)
+            {
+                var type=error.GetType();
+                check((int?)type.GetProperty("NativeErrorCode")?.GetValue(error)==code&&
+                    (string?)type.GetProperty("CauseKind")?.GetValue(error)=="Windows"&&
+                    type.GetProperty("CauseHResult")?.GetValue(error) is int,"transport retains only numeric native cause and fixed kind");
+                check(error.InnerException is null&&!error.ToString().Contains("synthetic-private-url"),"transport diagnostics discard raw nested exceptions and secrets");
+            }
+            check(server.Gets==1&&output.Length==0,"unknown or certificate transport failure never gains an unsafe retry");
+        }
         using (var server = new FaultServer())
         using (var client = await Connect(server))
         {

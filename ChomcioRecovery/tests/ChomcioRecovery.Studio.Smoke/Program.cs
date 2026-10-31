@@ -10,6 +10,63 @@ internal static class StudioSmoke
     private static async Task Fails(Func<Task> action,string label){bool failed=false;try{await action();}catch(Exception e)when(e is IOException or InvalidDataException or ArgumentException or CryptographicException or System.Text.Json.JsonException){failed=true;}Check(failed,label);}
     [STAThread]private static int Main(string[] args)
     {
+        if(args.Length==2&&args[0]=="--large-folder")
+        {
+            try{LargeFolderScenarios.Run(Path.GetFullPath(args[1]),Check).GetAwaiter().GetResult();Console.WriteLine($"Checks: {checks}");return 0;}
+            catch(Exception e){Console.Error.WriteLine(e);return 1;}
+        }
+        if(args.Length==2&&args[0]=="--response-failures")
+        {
+            try{ResponseFailureScenarios.Run(Path.GetFullPath(args[1]),Check).GetAwaiter().GetResult();Console.WriteLine($"Checks: {checks}");return 0;}
+            catch(Exception e){Console.Error.WriteLine(e);return 1;}
+        }
+        if(args.Length==2&&args[0]=="--connection-inventory")
+        {
+            try{ConnectionInventoryScenarios.Run(Path.GetFullPath(args[1]),Check).GetAwaiter().GetResult();Console.WriteLine($"Checks: {checks}");return 0;}
+            catch(Exception e){Console.Error.WriteLine(e);return 1;}
+        }
+        if(args.Length==2&&args[0]=="--prepared-upload")
+        {
+            try{PreparedUploadScenarios.Run(Path.GetFullPath(args[1]),Check).GetAwaiter().GetResult();Console.WriteLine($"Checks: {checks}");return 0;}
+            catch(Exception e){Console.Error.WriteLine(e);return 1;}
+        }
+        if(args.Length==2&&args[0]=="--cloud-timeout-diagnostics")
+        {
+            try{CloudTimeoutScenarios.Run(Path.GetFullPath(args[1]),Check).GetAwaiter().GetResult();Console.WriteLine($"Checks: {checks}");return 0;}
+            catch(Exception e){Console.Error.WriteLine(e);return 1;}
+        }
+        if(args.Length==2&&args[0]=="--cloud-http-failures")
+        {
+            try{CloudHttpFailureScenarios.Run(Path.GetFullPath(args[1]),Check).GetAwaiter().GetResult();Console.WriteLine($"Checks: {checks}");return 0;}
+            catch(Exception e){Console.Error.WriteLine(e);return 1;}
+        }
+        if(args.Length==2&&args[0]=="--download-resume")
+        {
+            try{RestoreDownloadScenarios.Run(Path.GetFullPath(args[1]),Check).GetAwaiter().GetResult();Console.WriteLine($"Checks: {checks}");return 0;}
+            catch(Exception e){Console.Error.WriteLine(e);return 1;}
+        }
+        if(args.Length==2&&args[0]=="--background-cloud")return BackgroundCloudProbe.Run(args[1]);
+        if(args.Length==2&&args[0]=="--background-native")return InstalledBackgroundProbe.Run(args[1]);
+        if(args.Length==3&&args[0]=="--background-lease")
+        {try{BackgroundCopyScenarios.Hold(args[1],args[2]);return 0;}catch(Exception){return 1;}}
+        if(args.Length==2&&args[0]=="--background-copies")
+        {
+            try{BackgroundCopyScenarios.Run(Path.GetFullPath(args[1]),Check);Console.WriteLine($"Checks: {checks}");return 0;}
+            catch(Exception e){Console.Error.WriteLine(e);return 1;}
+        }
+        if(args.Length==2&&args[0]=="--recovery-guide")
+        {
+            try{Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);Application.EnableVisualStyles();RecoveryGuideScenarios.Run(Path.GetFullPath(args[1]),Check);Console.WriteLine($"Checks: {checks}");return 0;}
+            catch(Exception e){Console.Error.WriteLine(e);return 1;}
+        }
+        if(args.Length==3&&args[0]=="--prepare-windows-recovery")
+        {
+            const string lab=@"D:\Codex\VMs\ChomcioRecovery-Windows-Test\";
+            if(!Path.GetFullPath(args[1]).StartsWith(lab,StringComparison.OrdinalIgnoreCase)||
+                !Path.GetFullPath(args[2]).StartsWith(lab,StringComparison.OrdinalIgnoreCase))return 2;
+            try{string recoveryPath=SystemImageRecovery.PrepareAsync(args[1],args[2],null,default,false).GetAwaiter().GetResult();Console.WriteLine("WINDOWS_RECOVERY_PREPARATION=PASS "+recoveryPath);return 0;}
+            catch(Exception e){Console.Error.WriteLine(e);return 1;}
+        }
         if(args.Length==4&&args[0]=="--resume-daily-image-fix")
             return InstalledDailyImageResumeProbe.Run(args[1],args[2],args[3],true);
         if(args.Length==4&&args[0]=="--resume-daily-image")
@@ -38,13 +95,14 @@ internal static class StudioSmoke
         using var host=new Form{Opacity=0,ShowInTaskbar=false};int result=1;
         host.Shown+=async(_,_)=>
         {
-            try{if(args[0]=="--live")await LiveAcceptance.Run(args[1],args.Length>2?args[2]:"create");else await Run(args[0]);result=0;}catch(Exception e){Console.Error.WriteLine(e);}finally{host.Close();}
+            try{if(args[0]=="--live")await LiveAcceptance.Run(args[1],args.Length>2?args[2]:"create");else if(args.Length==2&&args[0]=="--system-readiness")await SystemImageWizardScenarios.Run(Path.GetFullPath(args[1]),Check);else await Run(args[0]);result=0;}catch(Exception e){Console.Error.WriteLine(e);}finally{host.Close();}
         };
         Application.Run(host);return result;
     }
     private static async Task Run(string root)
     {
         root=Path.GetFullPath(root);if(Directory.Exists(root))throw new IOException("Test requires a new directory.");Directory.CreateDirectory(root);
+        RecoveryGuideScenarios.Run(Path.Combine(root,"recovery-guide"),Check);
         Work12Scenarios.Run(Check);
         await LocalJobProgressScenarios.Run(root,Check);
         var secrets=new JobSecrets("synthetic-vault-secret","synthetic-login","synthetic-account-secret");

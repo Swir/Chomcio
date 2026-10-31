@@ -162,7 +162,7 @@ internal static class WindowsOwnedPlaintextPublisher
     {
         if (fullDestination.Contains('\0'))
             throw new IOException("NUL in restored-file destination.");
-        byte[] name = Encoding.Unicode.GetBytes(fullDestination);
+        byte[] name = Encoding.Unicode.GetBytes(WindowsNativePath.FromPath(fullDestination));
         int offset = checked((int)Marshal.OffsetOf<RenameInfoLayout>(nameof(RenameInfoLayout.FileName)));
         int lengthOffset = checked((int)Marshal.OffsetOf<RenameInfoLayout>(nameof(RenameInfoLayout.FileNameLength)));
         byte[] buffer = new byte[checked(offset + name.Length + sizeof(char))];

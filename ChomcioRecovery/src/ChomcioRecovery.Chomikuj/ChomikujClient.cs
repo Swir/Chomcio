@@ -25,6 +25,11 @@ public sealed partial class ChomikujClient : IDisposable
     private static readonly Uri Service = new("https://box.chomikuj.pl/services/ChomikBoxService.svc");
     private static readonly XNamespace Soap = "http://schemas.xmlsoap.org/soap/envelope/";
     private static readonly XNamespace Ns = "http://chomikuj.pl/";
+    private const int SmallSoapLimit = 2 * 1024 * 1024;
+    // A folder contains thousands of encrypted chunk records. Its complete
+    // metadata can exceed the small control-response quota. Keep a finite
+    // byte/character quota and reject overflow instead of truncating the list.
+    private const int FolderSoapLimit = 64 * 1024 * 1024;
     private readonly HttpClient http;
     private string token = "";
     private string accountId = "";
@@ -116,6 +121,8 @@ public sealed partial class ChomikujClient : IDisposable
     private sealed class FolderVault(ChomikujClient client, ChomikujFolder folder) : ICloudVault
     {
         public Task<IReadOnlyList<CloudObject>> ListAsync(CancellationToken cancellationToken) => client.ListFilesAsync(folder, cancellationToken);
+        public async Task<IReadOnlyList<string>> ListNamesAsync(CancellationToken cancellationToken) =>
+            (await client.ListFilesAsync(folder,cancellationToken,resolveLengths:false)).Select(file=>file.Name).ToArray();
         public Task<CloudObject> UploadAsync(string name, Stream encryptedContent, long length, CancellationToken cancellationToken) =>
             client.UploadAsync(folder, name, encryptedContent, length, cancellationToken);
         public Task DownloadAsync(CloudObject file, Stream destination, long maximumBytes, CancellationToken cancellationToken) =>
@@ -127,7 +134,7 @@ public sealed partial class ChomikujClient : IDisposable
         // A trailing slash distinguishes a folder from a file in ChomikBox.
         string path = "/" + EscapePathPart(accountName) + "/" + EscapePathPart(folder.Name) + "/";
         XElement result;
-        try { result = await RequestDownloadAsync(path, ct); }
+        try { result = await RequestFolderDownloadAsync(path, ct); }
         catch (ChomikujServiceException error) when (
             error.Failure == ChomikujFailure.RequestedFilesUnavailable && freshEmptyFolders.Contains(folder.Id))
         {
@@ -137,20 +144,20 @@ public sealed partial class ChomikujClient : IDisposable
             return Array.Empty<CloudObject>();
         }
         var list = result.Elements().FirstOrDefault(e => e.Name.LocalName == "list")
-            ?? throw new InvalidDataException("Chomikuj nie zwrócił listy plików; nie uznano folderu za pusty.");
+            ?? throw InvalidResponse("Chomikuj nie zwrócił listy plików; nie uznano folderu za pusty.", ResponseFailureKind.FileListMissing, HttpOperation.SoapRequest);
         var downloadedFolders = list.Elements().ToArray();
         if (downloadedFolders.Any(e => e.Name.LocalName != "DownloadFolder" ||
                 !e.Elements().Any(child => child.Name.LocalName == "files")))
-            throw new InvalidDataException("Chomikuj zwrócił nierozpoznaną strukturę listy plików.");
+            throw InvalidResponse("Chomikuj zwrócił nierozpoznaną strukturę listy plików.", ResponseFailureKind.FileListStructure, HttpOperation.SoapRequest);
         var fileEntries = downloadedFolders.SelectMany(e => e.Elements().Where(child => child.Name.LocalName == "files"))
             .SelectMany(e => e.Elements()).ToArray();
         if (fileEntries.Any(e => e.Name.LocalName != "FileEntry"))
-            throw new InvalidDataException("Chomikuj zwrócił nierozpoznany rekord pliku.");
+            throw InvalidResponse("Chomikuj zwrócił nierozpoznany rekord pliku.", ResponseFailureKind.FileRecordStructure, HttpOperation.SoapRequest);
         var records = fileEntries
             .Select(e => new CloudObject(Text(e, "id"), Text(e, "name"), ParseLength(Text(e, "size"))))
             .ToArray();
         if (records.Any(f => string.IsNullOrEmpty(f.Id) || string.IsNullOrEmpty(f.Name)))
-            throw new InvalidDataException("Chomikuj zwrócił niepełny rekord pliku.");
+            throw InvalidResponse("Chomikuj zwrócił niepełny rekord pliku.", ResponseFailureKind.FileRecordIncomplete, HttpOperation.SoapRequest);
         if (records.Length > 0) freshEmptyFolders.Remove(folder.Id);
         // SOAP's size field is not the authority for byte-accurate transfer.
         // Resolve the actual HTTP representation length before exposing records
@@ -267,7 +274,7 @@ public sealed partial class ChomikujClient : IDisposable
         {
             RequireServiceUri(uri);
             using var request = new HttpRequestMessage(method, uri);
-            var response = await SendTransferAsync(request, method == HttpMethod.Head ? "Rozmiar pliku" : "Pobieranie", deadline.Token);
+            var response = await SendTransferAsync(request, method == HttpMethod.Head ? "Rozmiar pliku" : "Pobieranie", deadline.Token,HttpOperation.DownloadContent);
             if ((int)response.StatusCode is >= 300 and < 400 && response.Headers.Location is { } location)
             {
                 response.Dispose();
@@ -276,7 +283,7 @@ public sealed partial class ChomikujClient : IDisposable
             }
             if (response.StatusCode != HttpStatusCode.OK)
             {
-                var error = SafeHttpError(response);
+                var error = SafeHttpError(response,HttpOperation.DownloadContent);
                 response.Dispose();
                 throw error;
             }
@@ -285,19 +292,20 @@ public sealed partial class ChomikujClient : IDisposable
         throw new IOException("Zbyt wiele przekierowań pobierania.");
     }
 
-    private Task<XElement> RequestDownloadAsync(string id, CancellationToken ct)
-        => RetryReadAsync(() => RequestDownloadOnceAsync(id, ct), ct);
+    private Task<XElement> RequestFolderDownloadAsync(string id, CancellationToken ct)
+        => RetryReadAsync(() => RequestDownloadOnceAsync(id, ct, folderListing: true), ct);
 
-    private Task<XElement> RequestDownloadOnceAsync(string id, CancellationToken ct)
+    private Task<XElement> RequestDownloadOnceAsync(string id, CancellationToken ct, bool folderListing = false)
     {
         RequireLogin();
-        return CallAsync("Download", ct, E("token", token),
+        // The trusted caller selects the scope, never a server-supplied file ID.
+        return CallAsync("Download", ct, folderListing ? FolderSoapLimit : SmallSoapLimit, E("token", token),
             E("sequence", E("stamp", "0"), E("part", "0"), E("count", "1")),
             E("disposition", "download"), E("list", E("DownloadReqEntry", E("id", id),
                 E("agreementInfo", E("AgreementInfo", E("name", "own"))))));
     }
 
-    private async Task<HttpResponseMessage> SendTransferAsync(HttpRequestMessage request, string operation, CancellationToken ct)
+    private async Task<HttpResponseMessage> SendTransferAsync(HttpRequestMessage request, string operation, CancellationToken ct,HttpOperation transportOperation)
     {
         var uri = request.RequestUri!;
         RequireServiceUri(uri);
@@ -306,17 +314,26 @@ public sealed partial class ChomikujClient : IDisposable
         string endpoint = uri.GetLeftPart(UriPartial.Authority);
         Diagnostics?.Report(operation + " HTTPS: " + endpoint);
         try { return await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct); }
+        catch (OperationCanceledException error)
+        {
+            // Retain cancellation semantics and the request boundary, without
+            // retaining an exception that may contain a signed URL.
+            throw new CloudTransferCanceledException(error,transportOperation);
+        }
         catch (HttpRequestException error)
         {
             string reason = error.HttpRequestError.ToString();
             for (Exception? inner = error.InnerException; inner is not null; inner = inner.InnerException)
                 if (inner is SocketException socket) { reason += "/" + socket.SocketErrorCode; break; }
             throw new CloudTransportException(operation + " HTTPS: " + endpoint + " — " + reason +
-                ". Operacja nie została potwierdzona.", error.HttpRequestError);
+                ". Operacja nie została potwierdzona.", error.HttpRequestError,error,transportOperation);
         }
     }
 
-    private async Task<XElement> CallAsync(string action, CancellationToken ct, params XElement[] values)
+    private Task<XElement> CallAsync(string action, CancellationToken ct, params XElement[] values)
+        => CallAsync(action, ct, SmallSoapLimit, values);
+
+    private async Task<XElement> CallAsync(string action, CancellationToken ct, int responseLimit, params XElement[] values)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
         deadline.CancelAfter(TimeSpan.FromSeconds(45));
@@ -328,10 +345,10 @@ public sealed partial class ChomikujClient : IDisposable
         try
         {
             using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
-            if (!response.IsSuccessStatusCode) throw SafeHttpError(response);
-            XElement doc = await ReadXmlAsync(response, deadline.Token);
+            if (!response.IsSuccessStatusCode) throw SafeHttpError(response,HttpOperation.SoapRequest);
+            XElement doc = await ReadXmlAsync(response, deadline.Token, responseLimit);
             var result = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == action + "Result")
-                ?? throw new InvalidDataException("Niezgodna odpowiedź interfejsu Chomikuj.");
+                ?? throw InvalidResponse("Niezgodna odpowiedź interfejsu Chomikuj.", ResponseFailureKind.SoapResultMissing, HttpOperation.SoapRequest);
             if (!Text(result, "status").Equals("Ok", StringComparison.OrdinalIgnoreCase))
             {
                 // Classify only exact known responses; never surface raw server
@@ -348,10 +365,10 @@ public sealed partial class ChomikujClient : IDisposable
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw new OperationCanceledException(ct); }
         catch (OperationCanceledException) { throw new CloudReadTimeoutException(); }
-        catch (HttpRequestException error) { throw new CloudTransportException("Nie udało się połączyć z Chomikuj przez HTTPS.", error.HttpRequestError); }
+        catch (HttpRequestException error) { throw new CloudTransportException("Nie udało się połączyć z Chomikuj przez HTTPS.", error.HttpRequestError,error,HttpOperation.SoapRequest); }
     }
 
-    private static async Task<XElement> ReadXmlAsync(HttpResponseMessage response, CancellationToken ct)
+    private static async Task<XElement> ReadXmlAsync(HttpResponseMessage response, CancellationToken ct, int limit)
     {
         await using var input = await response.Content.ReadAsStreamAsync(ct);
         using var bytes = new MemoryStream();
@@ -359,12 +376,12 @@ public sealed partial class ChomikujClient : IDisposable
         int count;
         while ((count = await ReadBodyAsync(input, buffer, ct)) > 0)
         {
-            if (bytes.Length + count > 2 * 1024 * 1024) throw new InvalidDataException("Zbyt duża odpowiedź Chomikuj.");
+            if (bytes.Length + count > limit) throw InvalidResponse("Zbyt duża odpowiedź Chomikuj.", ResponseFailureKind.SoapBodyTooLarge, HttpOperation.SoapRequest);
             bytes.Write(buffer, 0, count);
         }
         bytes.Position = 0;
         using var reader = XmlReader.Create(bytes, new XmlReaderSettings
-        { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = 2 * 1024 * 1024 });
+        { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = limit });
         return XElement.Load(reader);
     }
 
@@ -391,14 +408,14 @@ public sealed partial class ChomikujClient : IDisposable
     private static XElement E(string name, params object[] value) => new(Ns + name, value);
     private static string Text(XElement parent, string name) => parent.Elements().FirstOrDefault(e => e.Name.LocalName == name)?.Value ?? "";
     private static string RequiredText(XElement parent, string name) => Text(parent, name) is { Length: > 0 } text ? text : throw new InvalidDataException("Niepełna odpowiedź Chomikuj.");
-    private static long ParseLength(string text) => long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out long n) && n >= 0 ? n : throw new InvalidDataException("Niepoprawny rozmiar pliku Chomikuj.");
+    private static long ParseLength(string text) => long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out long n) && n >= 0 ? n : throw InvalidResponse("Niepoprawny rozmiar pliku Chomikuj.", ResponseFailureKind.FileLengthInvalid, HttpOperation.SoapRequest);
     private static string EscapePathPart(string part) => Uri.EscapeDataString(part).Replace("%20", "+").Replace('%', '*');
-    private static IOException SafeHttpError(HttpResponseMessage response)
+    private static IOException SafeHttpError(HttpResponseMessage response,HttpOperation operation=HttpOperation.Unknown)
     {
         TimeSpan? retryAfter = response.Headers.RetryAfter?.Delta;
         if (retryAfter is null && response.Headers.RetryAfter?.Date is { } date)
             retryAfter = date - DateTimeOffset.UtcNow;
-        return new CloudHttpException(response.StatusCode, retryAfter);
+        return new CloudHttpException(response.StatusCode, retryAfter,operation);
     }
     public void Dispose() { token = accountId = accountName = ""; freshEmptyFolders.Clear(); ResetWebSession(); http.Dispose(); }
 }

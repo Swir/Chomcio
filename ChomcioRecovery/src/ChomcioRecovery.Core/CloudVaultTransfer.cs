@@ -32,24 +32,50 @@ public sealed class CloudVaultTransfer(ICloudVault remote)
             vault.ExportEncryptedSnapshot(snapshotId, newEncryptedStaging, token, preparationProgress);
         }, token);
         token.ThrowIfCancellationRequested();
-        var index = UniqueIndex(await remote.ListAsync(token));
         var files = Directory.EnumerateFiles(newEncryptedStaging, "*", SearchOption.AllDirectories)
             .OrderBy(p => Path.GetFileName(p) == "repo.json" ? 0 : p.EndsWith(".snap", StringComparison.Ordinal) ? 2 : 1)
             .ThenBy(p => p, StringComparer.Ordinal).ToArray();
+        var paths = files.ToDictionary(p => RemoteName(Path.GetRelativePath(newEncryptedStaging, p).Replace('\\', '/')),
+            p => p, StringComparer.Ordinal);
+        await UploadRecordsAsync(paths.Keys.ToArray(), name => LocalEncryptedVault.ReadBoundedFile(paths[name],
+            name == "repo.json" ? 16_384 : name.EndsWith(".snap", StringComparison.Ordinal) ? ManifestLimit : ObjectLimit, token),
+            progress, token);
+    }
+
+    /// <summary>
+    /// Resume from a preserved export without allocating another full copy.
+    /// Authenticate its lineage, selected manifest and complete contents before
+    /// network I/O, and authenticate each captured record again before use.
+    /// Existing inputs are never repaired, overwritten or deleted on failure.
+    /// </summary>
+    public async Task UploadPreparedSnapshotAsync(string repository, string password, string snapshotId,
+        string existingEncryptedExport, IProgress<CloudProgress>? progress, CancellationToken token,
+        IProgress<VaultProgress>? preparationProgress = null)
+    {
+        token.ThrowIfCancellationRequested();
+        using var source = await Task.Run(() => LocalEncryptedVault.Open(repository, password), token);
+        using var prepared = await Task.Run(() => source.OpenPreparedCloudExport(snapshotId,
+            existingEncryptedExport, token, preparationProgress), token);
+        await UploadRecordsAsync(prepared.Names, name => prepared.ReadRecord(name, token), progress, token);
+    }
+
+    private async Task UploadRecordsAsync(IReadOnlyList<string> names, Func<string, byte[]> readRecord,
+        IProgress<CloudProgress>? progress, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var index = UniqueIndex(await remote.ListAsync(token));
         int completed = 0;
         long bytes = 0;
-        foreach (string path in files)
+        foreach (string name in names)
         {
             token.ThrowIfCancellationRequested();
-            string relative = Path.GetRelativePath(newEncryptedStaging, path).Replace('\\', '/');
-            string name = RemoteName(relative);
-            int limit = name == "repo.json" ? 16_384 : name.EndsWith(".snap", StringComparison.Ordinal) ? ManifestLimit : ObjectLimit;
-            byte[] expected = LocalEncryptedVault.ReadBoundedFile(path, limit);
+            byte[] expected = await Task.Run(() => readRecord(name), token);
             try
             {
                 if (!index.TryGetValue(name, out var file))
                 {
-                    progress?.Report(new("Wysyłanie zaszyfrowanych danych", completed, files.Length, bytes));
+                    progress?.Report(new("Wysyłanie zaszyfrowanych danych", completed, names.Count, bytes));
+                    token.ThrowIfCancellationRequested();
                     using var input = new MemoryStream(expected, writable: false);
                     file = await remote.UploadAsync(name, input, expected.Length, token);
                     if (file.Name != name || file.Length != expected.Length)
@@ -58,14 +84,16 @@ public sealed class CloudVaultTransfer(ICloudVault remote)
                 }
                 if (file.Length != expected.Length)
                     throw new InvalidDataException("W chmurze istnieje inny plik o tej samej nazwie. Niczego nie nadpisano.");
-                progress?.Report(new("Sprawdzanie danych pobranych z Chomikuj", completed, files.Length, bytes));
+                progress?.Report(new("Sprawdzanie danych pobranych z Chomikuj", completed, names.Count, bytes));
+                token.ThrowIfCancellationRequested();
                 using var readback = new MemoryStream();
                 await remote.DownloadAsync(file, readback, expected.Length, token);
+                token.ThrowIfCancellationRequested();
                 if (!readback.ToArray().AsSpan().SequenceEqual(expected))
                     throw new InvalidDataException("Dane pobrane z chmury różnią się od wysłanych. Kopia nie jest potwierdzona.");
                 bytes = checked(bytes + expected.Length);
                 completed++;
-                progress?.Report(new("Sprawdzono", completed, files.Length, bytes));
+                progress?.Report(new("Sprawdzono", completed, names.Count, bytes));
             }
             finally { CryptographicOperations.ZeroMemory(expected); }
         }
@@ -73,20 +101,37 @@ public sealed class CloudVaultTransfer(ICloudVault remote)
 
     public async Task<IReadOnlyList<string>> ListSnapshotsAsync(CancellationToken token)
     {
-        var index = UniqueIndex(await remote.ListAsync(token));
-        if (!index.ContainsKey("repo.json")) return Array.Empty<string>();
-        return index.Keys.Where(n => n.Length == 37 && n.EndsWith(".snap", StringComparison.Ordinal)
+        var names=await remote.ListNamesAsync(token);
+        var unique=new HashSet<string>(names,StringComparer.Ordinal);
+        if(unique.Count!=names.Count)throw new InvalidDataException("Powielona nazwa w folderze kopii. Wybierz odrębny folder dla jednego sejfu.");
+        if (!unique.Contains("repo.json")) return Array.Empty<string>();
+        return unique.Where(n => n.Length == 37 && n.EndsWith(".snap", StringComparison.Ordinal)
             && n[..32].All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f'))
             .Select(n => n[..32]).OrderBy(n => n, StringComparer.Ordinal).ToArray();
     }
 
-    public async Task DownloadSnapshotAsync(string snapshotId, string password, string newRepository,
+    public Task DownloadSnapshotAsync(string snapshotId, string password, string newRepository,
         IProgress<CloudProgress>? progress, CancellationToken token)
+        => DownloadSnapshotAsync(snapshotId,password,newRepository,progress,token,null);
+
+    // A failed attempt is a read-only source, never an output to reopen or
+    // overwrite. Metadata is fetched afresh; reuse is authenticated with the
+    // current cloud vault key and expected object ID before any copied write.
+    public async Task DownloadSnapshotAsync(string snapshotId, string password, string newRepository,
+        IProgress<CloudProgress>? progress, CancellationToken token,string? previousRepository)
     {
+        token.ThrowIfCancellationRequested();
         if (snapshotId.Length != 32 || !snapshotId.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f'))
             throw new ArgumentException("Niepoprawny identyfikator kopii.");
         if (Directory.Exists(newRepository) || File.Exists(newRepository))
             throw new IOException("Pobieranie wymaga nowego katalogu.");
+        if(previousRepository is not null)
+        {
+            previousRepository=Path.GetFullPath(previousRepository);
+            if(!Directory.Exists(previousRepository))throw new DirectoryNotFoundException("Brak wcześniejszej próby pobierania.");
+            LocalEncryptedVault.RequireSafeRepositoryReadPath(previousRepository);
+            LocalEncryptedVault.EnsureRepositoryPathDisjoint(previousRepository,newRepository);
+        }
         var index = UniqueIndex(await remote.ListAsync(token));
         if (!index.ContainsKey("repo.json") || !index.ContainsKey(snapshotId + ".snap"))
             throw new InvalidDataException("Niekompletna kopia w chmurze.");
@@ -105,9 +150,27 @@ public sealed class CloudVaultTransfer(ICloudVault remote)
             token.ThrowIfCancellationRequested();
             string parent = Path.Combine(newRepository, "objects", id[..2]);
             Directory.CreateDirectory(parent);
-            await Fetch(id + ".obj", Path.Combine(parent, id + ".obj"), ObjectLimit);
+            bool reused=false;
+            if(previousRepository is not null)
+            {
+                byte[]? captured=null;
+                try
+                {
+                    captured=vault.ReadAuthenticatedChunkForReuse(previousRepository,id,token);
+                    if(!index.TryGetValue(id+".obj",out var listed)||captured.Length!=listed.Length)
+                        throw new InvalidDataException("Wcześniej pobrany fragment ma inny rozmiar.");
+                }
+                catch(Exception error) when(error is FileNotFoundException or DirectoryNotFoundException or InvalidDataException or CryptographicException)
+                {if(captured is not null)CryptographicOperations.ZeroMemory(captured);captured=null;}
+                if(captured is not null)
+                {
+                    try{token.ThrowIfCancellationRequested();LocalEncryptedVault.WriteAtomic(Path.Combine(parent,id+".obj"),captured,cancellationToken:token);reused=true;}
+                    finally{CryptographicOperations.ZeroMemory(captured);}
+                }
+            }
+            if(!reused)await Fetch(id + ".obj", Path.Combine(parent, id + ".obj"), ObjectLimit);
             bytes = checked(bytes + index[id + ".obj"].Length);
-            progress?.Report(new("Pobieranie zaszyfrowanych fragmentów", ++completed, ids.Length, bytes));
+            progress?.Report(new(reused?"Sprawdzono wcześniej pobrany fragment":"Pobieranie zaszyfrowanych fragmentów", ++completed, ids.Length, bytes));
         }
         vault.VerifySnapshot(snapshotId, token);
 

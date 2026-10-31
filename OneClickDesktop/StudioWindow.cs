@@ -129,7 +129,7 @@ internal sealed class StudioWindow : Form, IInlineFeedback
         Place(card,StudioTheme.Label(profile.Name,17,null,true),22,17);
         Place(card,StudioTheme.Label(profile.Destination==BackupDestination.Chomikuj?"CHOMIKUJ  ·  SZYFROWANA KOPIA":"NA DYSKU  ·  SZYFROWANA KOPIA",8,StudioTheme.Accent,true),23,50);
         var path=StudioTheme.Label(profile.Content==BackupContent.WindowsSystem?"Windows, programy, ustawienia i partycje startowe":profile.Source,9,StudioTheme.Muted);path.AutoSize=false;path.AutoEllipsis=true;path.Height=23;Place(card,path,23,74);
-        string schedule=(profile.AtLogon?"Po zalogowaniu do Windows  ":"")+(profile.Daily?$"Codziennie {profile.DailyMinute/60:00}:{profile.DailyMinute%60:00}":profile.AtLogon?"":"Uruchamiasz przyciskiem poniżej");
+        string schedule=(profile.AtBoot?"Po uruchomieniu komputera  ":"")+(profile.AtLogon?"Po zalogowaniu do Windows  ":"")+(profile.Daily?$"Codziennie {profile.DailyMinute/60:00}:{profile.DailyMinute%60:00}":profile.AtLogon||profile.AtBoot?"":"Uruchamiasz przyciskiem poniżej");
         Place(card,StudioTheme.Label(profile.Enabled?schedule:"Automatyczne wykonywanie wyłączone",9,StudioTheme.Muted),23,103);
         string state=profile.LastSuccess is null?(cloud?"Kopia nie została jeszcze wysłana do Chomikuj.":"Brak ukończonej kopii."):
             (cloud?"W Chomikuj · sprawdzona: ":"Na dysku · sprawdzona: ")+profile.LastSuccess.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm");
@@ -182,7 +182,8 @@ internal sealed class StudioWindow : Form, IInlineFeedback
             catch(Exception e){ShowFeedback(JobEngine.SafeError(e));}
         },true),24,321);
         var info=new StudioCard{Height=176};flow.Controls.Add(info);Place(info,StudioTheme.Label("Kontrola pozostaje u Ciebie",15,null,true),24,20);
-        Place(info,StudioTheme.Label("Autostart działa po zalogowaniu użytkownika, także przy schowanym oknie.\nTa wersja nie jest usługą działającą przed logowaniem. Wyjście z programu\nwstrzymuje harmonogram. Windows może opóźnić uruchomienie autostartu.\nHasła automatycznych zadań chroni konto Windows (DPAPI).",10,StudioTheme.Muted),24,60);
+        Place(info,StudioTheme.Label("Autostart otwiera program po zalogowaniu, także przy schowanym oknie.\nOpcja poniżej pozwala wykonywać kopie także po zamknięciu programu\ni przed zalogowaniem. Wymaga jednorazowego podania hasła konta Windows.\nKlucze kopii nadal chroni konto Windows (DPAPI).",10,StudioTheme.Muted),24,60);
+        var background=StudioTheme.Button("Kopie przy zamkniętym programie",()=>{if(Preview)return;using var window=new ScheduledCopiesWindow(store.Root);window.ShowDialog(this);});background.Name="BackgroundCopiesSettings";background.Width=330;flow.Controls.Add(background);
         var account=StudioTheme.Button("Konto i zapisane hasła",()=>{using var window=new AccountWindow(store);window.ShowDialog(this);if(window.Forgotten)sessionSecrets.Clear();});account.Width=240;flow.Controls.Add(account);
         var image=StudioTheme.Button("Kopia Windows na Chomikuj",()=>ShowPage("Obraz Windows"));image.Width=240;flow.Controls.Add(image);
         var tools=StudioTheme.Button("Narzędzia zaawansowane",()=>OpenManual(true));tools.Width=240;flow.Controls.Add(tools);
@@ -250,7 +251,9 @@ internal sealed class StudioWindow : Form, IInlineFeedback
         create.Name="NewWindowsCloudBackup";create.Width=320;create.Enabled=!engine.IsBusy;Place(card,create,24,218);
         foreach(var profile in store.Data.Profiles.Where(p=>p.Content==BackupContent.WindowsSystem))flow.Controls.Add(JobCard(profile));
         var local=StudioTheme.Button("Kopia Windows na dysku",()=>EditProfile(null,BackupDestination.Local,BackupContent.WindowsSystem));local.Enabled=!engine.IsBusy;flow.Controls.Add(local);
-        var restore=new StudioCard{Height=176};flow.Controls.Add(restore);Place(restore,StudioTheme.Label("Przygotuj się na awarię",15,null,true),24,20);Place(restore,StudioTheme.Label("Zapisz klucz odzyskiwania poza komputerem. Przycisk „Pobierz obraz”\npobiera i sprawdza pliki obrazu. Przywrócenie całego Windows wymaga\nuruchomienia środowiska ratunkowego (WinRE). Kreator własnego\nnośnika ratunkowego jest jeszcze w przygotowaniu.",10,StudioTheme.Muted),24,61);
+        var prepare=StudioTheme.Button("Przygotuj pobrany obraz do odzyskiwania",()=>{using var window=new SystemImageRecoveryWindow();window.ShowDialog(this);});prepare.Name="PrepareDownloadedWindowsImage";prepare.Width=370;prepare.Enabled=!engine.IsBusy;flow.Controls.Add(prepare);
+        var restore=new StudioCard{Height=205};flow.Controls.Add(restore);Place(restore,StudioTheme.Label("Przygotuj się na awarię",15,null,true),24,20);Place(restore,StudioTheme.Label("Zachowaj klucz poza komputerem i przygotuj osobny pendrive.\nPrzewodnik otworzy kreator nośnika Windows i pozwoli zapisać\ninstrukcję pobrania oraz odtworzenia kopii z Chomikuj.",10,StudioTheme.Muted),24,61);
+        var guide=StudioTheme.Button("Nośnik ratunkowy i instrukcja",()=>{using var window=new WindowsRecoveryGuideWindow();window.ShowDialog(this);});guide.Name="WindowsRecoveryGuide";guide.Width=300;Place(restore,guide,24,145);
     }
     internal void EditProfile(BackupProfile? profile,BackupDestination? newDestination=null,BackupContent newContent=BackupContent.Files)
     {
@@ -262,7 +265,7 @@ internal sealed class StudioWindow : Form, IInlineFeedback
         var changed=editor.ResultProfile;
         try
         {
-            if((changed.AtLogon||changed.Daily)&&!Preview)StartupRegistration.SetEnabled(true);
+            if((changed.AtLogon||changed.AtBoot||changed.Daily)&&!Preview)StartupRegistration.SetEnabled(true);
             int index=store.Data.Profiles.FindIndex(p=>p.Id==changed.Id);if(index<0)store.Data.Profiles.Add(changed);else store.Data.Profiles[index]=changed;
             if(changed.ProtectedSecrets is not null&&changed.Destination==BackupDestination.Chomikuj)StudioCredentials.RememberAccount(store,editor.ResultSecrets!);
             store.Save();sessionSecrets[changed.Id]=editor.ResultSecrets!;ShowPage(changed.Destination==BackupDestination.Chomikuj?"Chomikuj":"Moje kopie");

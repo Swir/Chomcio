@@ -18,6 +18,13 @@ Directory.CreateDirectory(root);
 string New(string name) => Path.Combine(root, name + Guid.NewGuid().ToString("N"));
 try
 {
+    if (args.SequenceEqual(new[] { "--web-session-only" }))
+    {
+        await WebSessionRefreshTests.Run(Check, Fails);
+        Console.WriteLine($"CHOMCIO_WEB_SESSION_REFRESH=PASS assertions={checks}");
+        Console.WriteLine("LIVE_CHOMIKUJ_ACCOUNT=NOT_TESTED (local deterministic transport)");
+        return;
+    }
     string source = New("source"), repo = New("vault");
     Directory.CreateDirectory(Path.Combine(source, "empty"));
     byte[] bytes = RandomNumberGenerator.GetBytes(LocalEncryptedVault.ChunkBytes + 123);
@@ -88,8 +95,11 @@ try
     }
     await FolderProtocolRegressions.Run(Check, Fails, repo, password, id, New);
     await FolderProtectionTests.Run(Check,Fails);
+    await WebSessionRefreshTests.Run(Check, Fails);
     await ReadRetryTests.Run(Check, Fails);
     await TransferProgressScenarios.Run(repo,password,id,New,Check);
+    await DownloadResumeScenarios.Run(repo,password,id,New,Check);
+    await SnapshotListingScenarios.Run(Check);
     Console.WriteLine($"CHOMCIO_CLOUD_ENGINE_PROTOCOL_SMOKE=PASS assertions={checks}");
     Console.WriteLine("LIVE_CHOMIKUJ_ACCOUNT=NOT_TESTED (local deterministic transport)");
 }

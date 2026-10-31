@@ -80,6 +80,9 @@ internal sealed class SystemImageLease : IDisposable
     internal static async Task<SystemImageLease> OpenAsync(string directory, PendingSystemImage pending,
         CancellationToken token)
     {
+        if(!ChomcioRecovery.SystemImages.BrokerFiles.IsId(pending.PlanId)||
+            !ChomcioRecovery.SystemImages.BrokerFiles.IsId(pending.CaptureId)||pending.RequestedUtc==default)
+            throw new InvalidDataException("Niepoprawna tożsamość pobranego obrazu Windows.");
         StudioStore.RejectLinks(directory);
         var entries = Directory.GetFileSystemEntries(directory);
         if (entries.Length != 2 || !entries.Select(Path.GetFileName).ToHashSet(StringComparer.Ordinal)

@@ -25,6 +25,12 @@ public sealed partial class ChomikujClient
     private async Task<CloudObject> UploadViaWebAsync(ChomikujFolder folder, string name,
         Stream input, long length, CancellationToken ct)
     {
+        // Folder protection or a previous object may have opened the portal
+        // session before lengthy local preparation/read-back. SOAP activity
+        // does not establish that its cookies and cached form are still valid.
+        // Establish one fresh portal session BEFORE requesting an address;
+        // neither an address request nor an ambiguous send is retried.
+        ResetWebSession();
         await EnsureWebSessionAsync(ct);
         Uri uploadUri;
         using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct))
@@ -38,9 +44,9 @@ public sealed partial class ChomikujClient
                 ["accountname"] = accountName, ["folderid"] = folder.Id,
                 ["__RequestVerificationToken"] = webVerificationToken
             });
-            using var response = await SendTransferAsync(request, "Adres wysyłania ze strony", deadline.Token);
-            if (!response.IsSuccessStatusCode) throw SafeHttpError(response);
-            using var json = await ReadWebJsonAsync(response, deadline.Token);
+            using var response = await SendTransferAsync(request, "Adres wysyłania ze strony", deadline.Token,HttpOperation.UploadAddress);
+            if (!response.IsSuccessStatusCode) throw SafeHttpError(response,HttpOperation.UploadAddress);
+            using var json = await ReadWebJsonAsync(response, deadline.Token, HttpOperation.UploadAddress);
             if (!json.RootElement.TryGetProperty("Url", out var value) || value.ValueKind != JsonValueKind.String ||
                 !Uri.TryCreate(value.GetString(), UriKind.Absolute, out var address))
                 throw new IOException("Chomikuj nie potwierdził adresu wysyłania na własne konto (WebUploadUrl).");
@@ -57,9 +63,9 @@ public sealed partial class ChomikujClient
         upload.Headers.Referrer = new Uri("https://chomikuj.pl/");
         // Do not retry an ambiguous send or treat its folder as new and empty.
         freshEmptyFolders.Remove(folder.Id);
-        using var uploaded = await SendTransferAsync(upload, "Wysyłanie", ct);
-        if (!uploaded.IsSuccessStatusCode) throw SafeHttpError(uploaded);
-        using var result = await ReadWebJsonAsync(uploaded, ct);
+        using var uploaded = await SendTransferAsync(upload, "Wysyłanie", ct,HttpOperation.UploadContent);
+        if (!uploaded.IsSuccessStatusCode) throw SafeHttpError(uploaded,HttpOperation.UploadContent);
+        using var result = await ReadWebJsonAsync(uploaded, ct, HttpOperation.UploadContent);
         if (!result.RootElement.TryGetProperty("files", out var files) || files.ValueKind != JsonValueKind.Array || files.GetArrayLength() != 1)
             throw new IOException("Chomikuj nie potwierdził pojedynczego wysłanego pliku (WebUploadResult).");
         var record = files[0];
@@ -91,14 +97,14 @@ public sealed partial class ChomikujClient
             if (uri.IdnHost is not ("chomikuj.pl" or "www.chomikuj.pl"))
                 throw new IOException("Odmowa przekazania sesji strony poza domenę logowania Chomikuj.");
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            using var response = await SendTransferAsync(request, "Sesja strony", deadline.Token);
+            using var response = await SendTransferAsync(request, "Sesja strony", deadline.Token,HttpOperation.WebSession);
             if ((int)response.StatusCode is >= 300 and < 400 && response.Headers.Location is { } location)
             {
                 uri = SecureDownloadUri(location.IsAbsoluteUri ? location : new Uri(uri, location));
                 continue;
             }
-            if (!response.IsSuccessStatusCode) throw SafeHttpError(response);
-            string html = await ReadWebTextAsync(response, deadline.Token);
+            if (!response.IsSuccessStatusCode) throw SafeHttpError(response,HttpOperation.WebSession);
+            string html = await ReadWebTextAsync(response, deadline.Token, HttpOperation.WebSession);
             foreach (Match tag in Regex.Matches(html, "<input\\b[^>]*>", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1)))
             {
                 var attributes = Regex.Matches(tag.Value, "([\\w-]+)\\s*=\\s*([\"'])(.*?)\\2", RegexOptions.Singleline, TimeSpan.FromSeconds(1));
@@ -120,14 +126,14 @@ public sealed partial class ChomikujClient
         field.ValueKind == JsonValueKind.String ? field.GetString() ?? "" :
         field.ValueKind == JsonValueKind.Number ? field.GetRawText() : "" : "";
 
-    private static async Task<JsonDocument> ReadWebJsonAsync(HttpResponseMessage response, CancellationToken ct)
+    private static async Task<JsonDocument> ReadWebJsonAsync(HttpResponseMessage response, CancellationToken ct, HttpOperation operation)
     {
-        string text = await ReadWebTextAsync(response, ct);
+        string text = await ReadWebTextAsync(response, ct, operation);
         try { return JsonDocument.Parse(text, new JsonDocumentOptions { MaxDepth = 32 }); }
-        catch (JsonException) { throw new InvalidDataException("Chomikuj zwrócił nierozpoznaną odpowiedź strony (WebJson)."); }
+        catch (JsonException) { throw InvalidResponse("Chomikuj zwrócił nierozpoznaną odpowiedź strony (WebJson).", ResponseFailureKind.WebJsonMalformed, operation); }
     }
 
-    private static async Task<string> ReadWebTextAsync(HttpResponseMessage response, CancellationToken ct)
+    private static async Task<string> ReadWebTextAsync(HttpResponseMessage response, CancellationToken ct, HttpOperation operation)
     {
         await using var input = await response.Content.ReadAsStreamAsync(ct);
         using var bytes = new MemoryStream();
@@ -135,7 +141,7 @@ public sealed partial class ChomikujClient
         int count;
         while ((count = await input.ReadAsync(buffer, ct)) > 0)
         {
-            if (bytes.Length + count > 2 * 1024 * 1024) throw new InvalidDataException("Zbyt duża odpowiedź strony Chomikuj.");
+            if (bytes.Length + count > 2 * 1024 * 1024) throw InvalidResponse("Zbyt duża odpowiedź strony Chomikuj.", ResponseFailureKind.WebBodyTooLarge, operation);
             bytes.Write(buffer, 0, count);
         }
         return Encoding.UTF8.GetString(bytes.GetBuffer(), 0, checked((int)bytes.Length));
