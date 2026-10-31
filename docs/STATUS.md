@@ -59,8 +59,16 @@ a błędną odpowiedzią serwera. Dane i siedem niepowodzeń zachowano, VM
 wyłączono normalnie po potwierdzeniu bezczynności. Poprawka `1e693f0` dodaje
 bezpieczną kategorię wybranych odrzuconych odpowiedzi i operację; 76 nowych
 kontroli syntetycznych przeszło na dokładnych końcowych bibliotekach.
-Kandydat r115 nie został wdrożony. Nie ponawiano dużej kopii dla diagnostyki;
-jej ukończenie i niezależne pobranie nadal wymagają potwierdzenia.
+Kandydat r115 nie został wdrożony. Nie ponawiano dużej kopii dla diagnostyki.
+Następny odczyt samych nazw ujawnił konkretną bieżącą przeszkodę:
+`SoapBodyTooLarge`, czyli pełną listę przekraczającą limit 2 MiB. Poprawka
+`dea62b2` oddziela ograniczoną do 64 MiB listę folderu od małych odpowiedzi
+SOAP; pozostałe limity i weryfikacja danych pozostają zachowane. Przeszło
+27 nowych kontroli syntetycznych. Poprawiona biblioteka odczytała następnie
+2892 unikalne nazwy bez pobierania treści i zapisów, nadal bez manifestu
+oczekującej kopii. To potwierdza odczyt listy, nie ukończenie kopii.
+Kandydat r117 wymaga wdrożenia i próby transferu; ukończenie i niezależne
+pobranie nowej dużej kopii nadal wymagają potwierdzenia.
 Szczegóły i granice dowodów w [VALIDATION.md](../VALIDATION.md).
 
 - Kwalifikacja całego przejścia przez interaktywny kreator Windows na zwykłym koncie; instalator EXE i odczyt planu pod tokenem zwykłego użytkownika przeszły test VM.

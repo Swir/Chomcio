@@ -1,5 +1,39 @@
 # Sprawdzenie wydania 1.0.0
 
+## Pełna lista folderu ponad 2 MiB — 31 października 2026
+
+Jeden rzeczywisty odczyt samych nazw na r115 zakończył się
+`SoapBodyTooLarge` / `SoapRequest`. Nie pobierano treści plików i nie
+wykonywano zapisów. Ujawnił konkretną bieżącą przeszkodę: pełna lista
+fragmentów przekraczała wspólny limit 2 MiB dla odpowiedzi sterujących.
+Oryginalna odpowiedź wcześniejszej awarii nie została zachowana, dlatego
+ten wynik nie przypisuje jej automatycznie tej samej przyczyny.
+
+Poprawka `dea62b2` daje odpowiedzi z pełną listą folderu osobny limit
+64 MiB, kontrolowany zarówno w bajtach, jak i znakach XML. Pozostałe
+odpowiedzi SOAP, w tym logowanie, drzewo folderów i metadane pojedynczego
+pliku, nadal mają limit 2 MiB. Zakres wybiera miejsce wywołania w programie,
+nie identyfikator otrzymany z serwera. Przekroczenie limitu nadal kończy
+operację błędem; lista nie jest obcinana. Nie zmieniono limitów czasu,
+retry, TLS, kryptografii ani sprawdzania dokładnych pobranych bajtów.
+
+Na poprzednim runtime syntetyczna poprawna lista 3000 rekordów odtworzyła
+odmowę. Na dokładnym końcowym zestawie bibliotek przeszło 27 nowych kontroli:
+pełna lista z końcowymi rekordami, późniejsze dokładne długości i odczyt,
+błędny rekord lub duplikat na końcu, blokada DTD, granice 64/2 MiB także
+przy fałszywym nagłówku długości oraz anulowanie bez ponowienia.
+
+Jeden rzeczywisty odczyt na poprawionej bibliotece zwrócił 2892 unikalne
+nazwy: repo.json i 2891 obiektów, bez manifestu oczekującego punktu.
+Wykonano po jednym żądaniu logowania, folderów i listy; zero pobierania
+treści i zero zapisów. Potwierdza to usunięcie obecnej przeszkody odczytu
+listy, a nie integralność ani ukończenie dużej kopii. VM pozostała wyłączona.
+
+Kandydat r117 zachowuje Core i aplikację z r115, zmienia adapter.
+Wdrożenie oraz pełna próba transferu pozostają do potwierdzenia.
+Nadal nie wydano Stable; niezależne pobranie nowej kopii i pełna dostarczona
+ścieżka GUI/nośnika/WinRE pozostają wymagane.
+
 ## Odrzucenie danych lub odpowiedzi podczas wznowienia — 31 października 2026
 
 R111 wdrożono i wykonano jedną próbę tego samego oczekującego punktu z
