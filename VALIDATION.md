@@ -1,5 +1,36 @@
 # Sprawdzenie wydania 1.0.0
 
+## Odrzucenie danych lub odpowiedzi podczas wznowienia — 31 października 2026
+
+R111 wdrożono i wykonano jedną próbę tego samego oczekującego punktu z
+zachowanego eksportu. Próba zakończyła się `INTEGRITY` w fazie wysyłania.
+Historia nie zachowała dokładnej kontroli ani odpowiedzi, która wywołała
+błąd; nie ustalono, czy dotyczył danych kopii, czy odpowiedzi serwera.
+Nie potwierdzono ukończenia kopii. Siedem niepowodzeń, oczekujący punkt,
+obraz i pięć eksportów zachowano. Po świeżym potwierdzeniu braku procesów
+kopii i wyłączonych zadań odłączono testową sieć i normalnie wyłączono VM.
+
+Poprawka `1e693f0` zachowuje zamkniętą kategorię `ResponseFailure` oraz
+`HttpOperation` dla wybranych kontroli odpowiedzi SOAP i strony: błędnego
+JSON, przekroczenia rozmiaru odpowiedzi, braku wyniku lub listy, niepoprawnej
+struktury rekordów i rozmiaru pliku. Nie zapisuje treści odpowiedzi, adresów,
+sekretów ani surowego wyjątku parsera. Zachowuje `InvalidDataException`,
+kod `INTEGRITY` i dotychczasową odmowę ponawiania takiej operacji. Stare lub
+nieoznaczone błędy pozostają bez przypisanej kategorii.
+
+Regresja na poprzednim runtime odtworzyła utratę kategorii błędnej odpowiedzi.
+Na dokładnych końcowych bibliotekach przeszło 76 nowych małych kontroli:
+odrzucenie odpowiedzi, właściwa operacja, brak ponowień i ujawnienia treści,
+zapis historii, zachowanie oczekującego punktu, zgodność starych rekordów
+oraz poprawne pojedyncze wysłanie do syntetycznego serwera. Nie wykonano
+rzeczywistych wywołań chmury ani nowej dużej próby. Core, moduł obrazowania,
+kryptografia, TLS, retry i limity czasu pozostają bez zmian.
+
+Kandydat r115 nie jest wdrożony do VM. Poprawka diagnostyki nie ustala
+historycznej przyczyny i nie kwalifikuje dużej kopii. Nadal wymagane są jej
+ukończenie i niezależne pobranie oraz pełna dostarczona ścieżka GUI, nośnika
+i WinRE. **Stable pozostaje niewydane.**
+
 ## Wstępna lista nazw bez powtórnego pobierania — 30 października 2026
 
 R102 wdrożono do testowej VM. Harmonogram podjął zachowany punkt przed

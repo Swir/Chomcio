@@ -52,8 +52,15 @@ Poprawka `46a406c` usuwa powtórne pobieranie nagłówków na etapie sprawdzania
 dostępności folderu, wykorzystując tam listę nazw. Pełna kontrola rozmiarów,
 integralności eksportu i pobranych bajtów w transferze pozostaje wymagana.
 Przeszło 28 nowych kontroli syntetycznych na dokładnych końcowych bibliotekach.
-Kandydat r111 nie został wdrożony; ukończenie i niezależne pobranie nowej
-dużej kopii nadal wymagają potwierdzenia.
+Aktualizacja 31 października: r111 wdrożono; jedna próba zachowanego punktu
+zakończyła się `INTEGRITY` podczas wysyłania. Dokładna kontrola i przyczyna
+nie zostały zapisane; sam kod nie rozstrzyga między niezgodnością danych
+a błędną odpowiedzią serwera. Dane i siedem niepowodzeń zachowano, VM
+wyłączono normalnie po potwierdzeniu bezczynności. Poprawka `1e693f0` dodaje
+bezpieczną kategorię wybranych odrzuconych odpowiedzi i operację; 76 nowych
+kontroli syntetycznych przeszło na dokładnych końcowych bibliotekach.
+Kandydat r115 nie został wdrożony. Nie ponawiano dużej kopii dla diagnostyki;
+jej ukończenie i niezależne pobranie nadal wymagają potwierdzenia.
 Szczegóły i granice dowodów w [VALIDATION.md](../VALIDATION.md).
 
 - Kwalifikacja całego przejścia przez interaktywny kreator Windows na zwykłym koncie; instalator EXE i odczyt planu pod tokenem zwykłego użytkownika przeszły test VM.
