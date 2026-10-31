@@ -139,20 +139,20 @@ public sealed partial class ChomikujClient : IDisposable
             return Array.Empty<CloudObject>();
         }
         var list = result.Elements().FirstOrDefault(e => e.Name.LocalName == "list")
-            ?? throw new InvalidDataException("Chomikuj nie zwrócił listy plików; nie uznano folderu za pusty.");
+            ?? throw InvalidResponse("Chomikuj nie zwrócił listy plików; nie uznano folderu za pusty.", ResponseFailureKind.FileListMissing, HttpOperation.SoapRequest);
         var downloadedFolders = list.Elements().ToArray();
         if (downloadedFolders.Any(e => e.Name.LocalName != "DownloadFolder" ||
                 !e.Elements().Any(child => child.Name.LocalName == "files")))
-            throw new InvalidDataException("Chomikuj zwrócił nierozpoznaną strukturę listy plików.");
+            throw InvalidResponse("Chomikuj zwrócił nierozpoznaną strukturę listy plików.", ResponseFailureKind.FileListStructure, HttpOperation.SoapRequest);
         var fileEntries = downloadedFolders.SelectMany(e => e.Elements().Where(child => child.Name.LocalName == "files"))
             .SelectMany(e => e.Elements()).ToArray();
         if (fileEntries.Any(e => e.Name.LocalName != "FileEntry"))
-            throw new InvalidDataException("Chomikuj zwrócił nierozpoznany rekord pliku.");
+            throw InvalidResponse("Chomikuj zwrócił nierozpoznany rekord pliku.", ResponseFailureKind.FileRecordStructure, HttpOperation.SoapRequest);
         var records = fileEntries
             .Select(e => new CloudObject(Text(e, "id"), Text(e, "name"), ParseLength(Text(e, "size"))))
             .ToArray();
         if (records.Any(f => string.IsNullOrEmpty(f.Id) || string.IsNullOrEmpty(f.Name)))
-            throw new InvalidDataException("Chomikuj zwrócił niepełny rekord pliku.");
+            throw InvalidResponse("Chomikuj zwrócił niepełny rekord pliku.", ResponseFailureKind.FileRecordIncomplete, HttpOperation.SoapRequest);
         if (records.Length > 0) freshEmptyFolders.Remove(folder.Id);
         // SOAP's size field is not the authority for byte-accurate transfer.
         // Resolve the actual HTTP representation length before exposing records
@@ -339,7 +339,7 @@ public sealed partial class ChomikujClient : IDisposable
             if (!response.IsSuccessStatusCode) throw SafeHttpError(response,HttpOperation.SoapRequest);
             XElement doc = await ReadXmlAsync(response, deadline.Token);
             var result = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == action + "Result")
-                ?? throw new InvalidDataException("Niezgodna odpowiedź interfejsu Chomikuj.");
+                ?? throw InvalidResponse("Niezgodna odpowiedź interfejsu Chomikuj.", ResponseFailureKind.SoapResultMissing, HttpOperation.SoapRequest);
             if (!Text(result, "status").Equals("Ok", StringComparison.OrdinalIgnoreCase))
             {
                 // Classify only exact known responses; never surface raw server
@@ -367,7 +367,7 @@ public sealed partial class ChomikujClient : IDisposable
         int count;
         while ((count = await ReadBodyAsync(input, buffer, ct)) > 0)
         {
-            if (bytes.Length + count > 2 * 1024 * 1024) throw new InvalidDataException("Zbyt duża odpowiedź Chomikuj.");
+            if (bytes.Length + count > 2 * 1024 * 1024) throw InvalidResponse("Zbyt duża odpowiedź Chomikuj.", ResponseFailureKind.SoapBodyTooLarge, HttpOperation.SoapRequest);
             bytes.Write(buffer, 0, count);
         }
         bytes.Position = 0;
@@ -399,7 +399,7 @@ public sealed partial class ChomikujClient : IDisposable
     private static XElement E(string name, params object[] value) => new(Ns + name, value);
     private static string Text(XElement parent, string name) => parent.Elements().FirstOrDefault(e => e.Name.LocalName == name)?.Value ?? "";
     private static string RequiredText(XElement parent, string name) => Text(parent, name) is { Length: > 0 } text ? text : throw new InvalidDataException("Niepełna odpowiedź Chomikuj.");
-    private static long ParseLength(string text) => long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out long n) && n >= 0 ? n : throw new InvalidDataException("Niepoprawny rozmiar pliku Chomikuj.");
+    private static long ParseLength(string text) => long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out long n) && n >= 0 ? n : throw InvalidResponse("Niepoprawny rozmiar pliku Chomikuj.", ResponseFailureKind.FileLengthInvalid, HttpOperation.SoapRequest);
     private static string EscapePathPart(string part) => Uri.EscapeDataString(part).Replace("%20", "+").Replace('%', '*');
     private static IOException SafeHttpError(HttpResponseMessage response,HttpOperation operation=HttpOperation.Unknown)
     {

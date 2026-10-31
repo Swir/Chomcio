@@ -67,6 +67,7 @@ internal sealed class RunRecord
     public int? NativeErrorCode { get; set; }
     public int? CauseHResult { get; set; }
     public string? CauseKind { get; set; }
+    public string? ResponseFailure { get; set; }
     public string? Snapshot { get; set; }
     public BackupContent Content { get; set; }
     public string? ImageCaptureId { get; set; }

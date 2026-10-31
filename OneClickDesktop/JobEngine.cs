@@ -213,6 +213,12 @@ internal sealed class JobEngine
                 record.CauseKind=transport.CauseKind;
             }
             record.Detail=SafeError(error)+" Etap: "+record.FailureStage+" ["+record.FailureCode+"].";
+            if(ChomikujClient.GetResponseFailure(error) is {} response)
+            {
+                record.ResponseFailure=response.Reason.ToString();
+                record.HttpOperation=response.Operation.ToString();
+                record.Detail+=" Odpowiedź: "+record.ResponseFailure+"; operacja: "+record.HttpOperation+".";
+            }
         }
         finally
         {

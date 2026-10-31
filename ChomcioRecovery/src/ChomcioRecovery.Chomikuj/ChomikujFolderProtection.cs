@@ -69,6 +69,6 @@ public sealed partial class ChomikujClient
         request.Content=new FormUrlEncodedContent(fields);
         using var response=await SendTransferAsync(request,"Ochrona folderu",ct,HttpOperation.FolderProtection);
         if(!response.IsSuccessStatusCode)throw SafeHttpError(response,HttpOperation.FolderProtection);
-        return await ReadWebJsonAsync(response,ct);
+        return await ReadWebJsonAsync(response,ct,HttpOperation.FolderProtection);
     }
 }
