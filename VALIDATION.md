@@ -26,6 +26,15 @@ zostało odrzucone: `ChomikujServiceException`, operacja `Auth`, wynik `Rejected
 Nie wykonano odczytu folderu, pobrania treści ani zapisu w chmurze. Dokładna
 przyczyna odmowy pozostaje nieznana. Nie ponawiano logowania w pętli.
 
+Po zgodzie właściciela sprawdzono lokalnie zgodność danych tego samego konta
+z testowej VM i gospodarza. Dane były zgodne; nie potwierdzono różnicy haseł.
+O 10:10 UTC wykonano jedną nową próbę niezależnego odczytu z zatwierdzonymi
+danymi z VM. Ponownie otrzymano `Auth` / `Rejected`, przed listą folderów
+i pobieraniem. Nie wysłano nowych danych ani nie zmieniono kopii.
+Nie ustalono przyczyny odmowy i nie uruchomiono kolejnej próby w pętli.
+Po odczycie offline VM normalnie wyłączono, z odłączoną siecią i automatycznym
+DNS. Hasła, klucze oraz prywatne materiały kwalifikacyjne nie są publikowane.
+
 Ukończenie wysyłania nowej kopii jest potwierdzone. Jej niezależne pobranie
 i odtworzenie pozostają niezaliczone. Nadal wymagane są pełna dostarczona
 ścieżka GUI/nośnika/WinRE oraz zgodność końcowej paczki i dokumentacji.

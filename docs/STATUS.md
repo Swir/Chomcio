@@ -75,6 +75,10 @@ pięciu eksportów. Nie utworzono nowego obrazu ani kolejnego eksportu.
 Niezależne pobranie zatrzymało się na jednym odrzuconym logowaniu
 (`Auth` / `Rejected`), przed odczytem folderu lub pliku. Przyczyna odmowy
 pozostaje nieznana; nie wykonywano ponowień w pętli.
+Po zatwierdzonym odczycie offline potwierdzono lokalnie zgodność danych
+tego samego konta z VM i gospodarza. Jedna nowa próba o 10:10 UTC ponownie
+otrzymała `Auth` / `Rejected`, przed pobieraniem; zgodność danych nie
+wyjaśnia odmowy. VM normalnie wyłączono, sieć odłączona, DNS automatyczny.
 Szczegóły i granice dowodów w [VALIDATION.md](../VALIDATION.md).
 
 - Kwalifikacja całego przejścia przez interaktywny kreator Windows na zwykłym koncie; instalator EXE i odczyt planu pod tokenem zwykłego użytkownika przeszły test VM.
