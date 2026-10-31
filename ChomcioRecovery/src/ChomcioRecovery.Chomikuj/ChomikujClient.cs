@@ -25,6 +25,11 @@ public sealed partial class ChomikujClient : IDisposable
     private static readonly Uri Service = new("https://box.chomikuj.pl/services/ChomikBoxService.svc");
     private static readonly XNamespace Soap = "http://schemas.xmlsoap.org/soap/envelope/";
     private static readonly XNamespace Ns = "http://chomikuj.pl/";
+    private const int SmallSoapLimit = 2 * 1024 * 1024;
+    // A folder contains thousands of encrypted chunk records. Its complete
+    // metadata can exceed the small control-response quota. Keep a finite
+    // byte/character quota and reject overflow instead of truncating the list.
+    private const int FolderSoapLimit = 64 * 1024 * 1024;
     private readonly HttpClient http;
     private string token = "";
     private string accountId = "";
@@ -129,7 +134,7 @@ public sealed partial class ChomikujClient : IDisposable
         // A trailing slash distinguishes a folder from a file in ChomikBox.
         string path = "/" + EscapePathPart(accountName) + "/" + EscapePathPart(folder.Name) + "/";
         XElement result;
-        try { result = await RequestDownloadAsync(path, ct); }
+        try { result = await RequestFolderDownloadAsync(path, ct); }
         catch (ChomikujServiceException error) when (
             error.Failure == ChomikujFailure.RequestedFilesUnavailable && freshEmptyFolders.Contains(folder.Id))
         {
@@ -287,13 +292,14 @@ public sealed partial class ChomikujClient : IDisposable
         throw new IOException("Zbyt wiele przekierowań pobierania.");
     }
 
-    private Task<XElement> RequestDownloadAsync(string id, CancellationToken ct)
-        => RetryReadAsync(() => RequestDownloadOnceAsync(id, ct), ct);
+    private Task<XElement> RequestFolderDownloadAsync(string id, CancellationToken ct)
+        => RetryReadAsync(() => RequestDownloadOnceAsync(id, ct, folderListing: true), ct);
 
-    private Task<XElement> RequestDownloadOnceAsync(string id, CancellationToken ct)
+    private Task<XElement> RequestDownloadOnceAsync(string id, CancellationToken ct, bool folderListing = false)
     {
         RequireLogin();
-        return CallAsync("Download", ct, E("token", token),
+        // The trusted caller selects the scope, never a server-supplied file ID.
+        return CallAsync("Download", ct, folderListing ? FolderSoapLimit : SmallSoapLimit, E("token", token),
             E("sequence", E("stamp", "0"), E("part", "0"), E("count", "1")),
             E("disposition", "download"), E("list", E("DownloadReqEntry", E("id", id),
                 E("agreementInfo", E("AgreementInfo", E("name", "own"))))));
@@ -324,7 +330,10 @@ public sealed partial class ChomikujClient : IDisposable
         }
     }
 
-    private async Task<XElement> CallAsync(string action, CancellationToken ct, params XElement[] values)
+    private Task<XElement> CallAsync(string action, CancellationToken ct, params XElement[] values)
+        => CallAsync(action, ct, SmallSoapLimit, values);
+
+    private async Task<XElement> CallAsync(string action, CancellationToken ct, int responseLimit, params XElement[] values)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
         deadline.CancelAfter(TimeSpan.FromSeconds(45));
@@ -337,7 +346,7 @@ public sealed partial class ChomikujClient : IDisposable
         {
             using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
             if (!response.IsSuccessStatusCode) throw SafeHttpError(response,HttpOperation.SoapRequest);
-            XElement doc = await ReadXmlAsync(response, deadline.Token);
+            XElement doc = await ReadXmlAsync(response, deadline.Token, responseLimit);
             var result = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == action + "Result")
                 ?? throw InvalidResponse("Niezgodna odpowiedź interfejsu Chomikuj.", ResponseFailureKind.SoapResultMissing, HttpOperation.SoapRequest);
             if (!Text(result, "status").Equals("Ok", StringComparison.OrdinalIgnoreCase))
@@ -359,7 +368,7 @@ public sealed partial class ChomikujClient : IDisposable
         catch (HttpRequestException error) { throw new CloudTransportException("Nie udało się połączyć z Chomikuj przez HTTPS.", error.HttpRequestError,error,HttpOperation.SoapRequest); }
     }
 
-    private static async Task<XElement> ReadXmlAsync(HttpResponseMessage response, CancellationToken ct)
+    private static async Task<XElement> ReadXmlAsync(HttpResponseMessage response, CancellationToken ct, int limit)
     {
         await using var input = await response.Content.ReadAsStreamAsync(ct);
         using var bytes = new MemoryStream();
@@ -367,12 +376,12 @@ public sealed partial class ChomikujClient : IDisposable
         int count;
         while ((count = await ReadBodyAsync(input, buffer, ct)) > 0)
         {
-            if (bytes.Length + count > 2 * 1024 * 1024) throw InvalidResponse("Zbyt duża odpowiedź Chomikuj.", ResponseFailureKind.SoapBodyTooLarge, HttpOperation.SoapRequest);
+            if (bytes.Length + count > limit) throw InvalidResponse("Zbyt duża odpowiedź Chomikuj.", ResponseFailureKind.SoapBodyTooLarge, HttpOperation.SoapRequest);
             bytes.Write(buffer, 0, count);
         }
         bytes.Position = 0;
         using var reader = XmlReader.Create(bytes, new XmlReaderSettings
-        { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = 2 * 1024 * 1024 });
+        { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = limit });
         return XElement.Load(reader);
     }
 

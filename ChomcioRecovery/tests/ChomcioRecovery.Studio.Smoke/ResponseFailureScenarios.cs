@@ -97,7 +97,7 @@ internal static class ResponseFailureScenarios
     {
         internal int Failures,Uploads,PasswordWrites;
         private static HttpResponseMessage Reply(string body)=>new(HttpStatusCode.OK){Content=new StringContent(body)};
-        private HttpResponseMessage Fail(){Failures++;return Reply(mode=="large"?new string('x',2*1024*1024+1):"<html>"+Secret+"</html>");}
+        private HttpResponseMessage Fail(){Failures++;return Reply(mode=="large"?new string('x',(operation=="SoapRequest"?64:2)*1024*1024+1):"<html>"+Secret+"</html>");}
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken token)
         {
             var uri=request.RequestUri!;
